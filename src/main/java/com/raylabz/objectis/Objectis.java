@@ -163,6 +163,12 @@ public final class Objectis {
         }
     }
 
+    /**
+     * Deletes an object from the cache.
+     * @param aClass The object class.
+     * @param id The ID of the object.
+     * @param <T> The type of the object.
+     */
     public static <T> void delete(Class<T> aClass, String id) {
         try {
             checkRegistration(aClass);
