@@ -1,5 +1,6 @@
 import com.raylabz.objectis.Objectis;
 import com.raylabz.objectis.exception.ClassRegistrationException;
+import com.raylabz.objectis.query.OrderDirection;
 
 import java.util.Collection;
 import java.util.Scanner;
@@ -15,9 +16,8 @@ public class Test {
         for (int i = 0; i < 10; i++) {
             String uuid = UUID.randomUUID().toString();
             Person x = new Person(uuid, i + 20, "N" + i, "K" + i);
-            x.addFriend("a");
-            x.addFriend("b");
-            x.addFriend("c");
+            x.addFriend("friend " + i);
+            x.addFriend("friendz " + i);
             Objectis.create(x);
         }
 
@@ -29,7 +29,12 @@ public class Test {
 
         final long t = System.currentTimeMillis();
         final Collection<Person> items = Objectis.filter(Person.class)
-                .whereLessThanOrEqualTo("age", 25)
+//                .whereLessThanOrEqualTo("age", 25)
+//                .whereEqualTo("name", "N3")
+//                .whereArrayContainsAny("friendNames", "friend " + 3, "friendz " + 5)
+                .orderBy("name", OrderDirection.DESCENDING)
+                .offset(3)
+                .limit(5)
                 .fetch();
         System.out.println("Filter: " + (System.currentTimeMillis() - t));
 //        new Scanner(System.in).nextLine();
