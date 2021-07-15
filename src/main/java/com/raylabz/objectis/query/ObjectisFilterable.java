@@ -28,6 +28,17 @@ public class ObjectisFilterable<T> {
     }
 
     /**
+     * Constructs a filterable using an existing list of items.
+     * @param aClass The class.
+     * @param items A list of existing items.
+     */
+    public ObjectisFilterable(Class<T> aClass, Vector<T> items) {
+        this.aClass = aClass;
+        temporaryItems = items;
+        classFields = aClass.getDeclaredFields();
+    }
+
+    /**
      * Filters by a field's value being equal to the one provided.
      * @param fieldName The field name.
      * @param value The value provided.
@@ -413,6 +424,11 @@ public class ObjectisFilterable<T> {
         return this;
     }
 
+    /**
+     * Limits the results of the query to the limit provided.
+     * @param limit The limit.
+     * @return Returns a filterable.
+     */
     public ObjectisFilterable<T> limit(int limit) {
         if (limit > 0) {
             temporaryItems = new Vector<>(temporaryItems.subList(0, limit));
@@ -420,6 +436,11 @@ public class ObjectisFilterable<T> {
         return this;
     }
 
+    /**
+     * Offsets the result of the query based on the offset provided.
+     * @param offset The offset.
+     * @return Returns a filterable.
+     */
     public ObjectisFilterable<T> offset(int offset) {
         if (offset >= 0 && offset < temporaryItems.size()) {
             temporaryItems = new Vector<>(temporaryItems.subList(offset, temporaryItems.size()));

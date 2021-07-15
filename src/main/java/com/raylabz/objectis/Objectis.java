@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Set;
+import java.util.Vector;
 
 public final class Objectis {
 
@@ -215,8 +216,25 @@ public final class Objectis {
         }
     }
 
+    /**
+     * Enables filtering of a particular type of object.
+     * @param aClass The type of object.
+     * @param <T> The type of object.
+     * @return Returns an ObjectisFilterable.
+     */
     public static <T> ObjectisFilterable<T> filter(Class<T> aClass) {
         return new ObjectisFilterable<>(aClass);
+    }
+
+    /**
+     * Enables filtering of a particular type of object using existing items.
+     * @param aClass The type of object.
+     * @param items The existing items.
+     * @param <T> The type of object.
+     * @return Returns an ObjectisFilterable.
+     */
+    public static <T> ObjectisFilterable<T> filter(Class<T> aClass, Vector<T> items) {
+        return new ObjectisFilterable<>(aClass, items);
     }
 
 }
