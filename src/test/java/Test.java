@@ -1,6 +1,9 @@
 import com.raylabz.objectis.Objectis;
+import com.raylabz.objectis.PathMaker;
 import com.raylabz.objectis.exception.ClassRegistrationException;
 import com.raylabz.objectis.query.OrderDirection;
+import redis.clients.jedis.BinaryJedisPubSub;
+import redis.clients.jedis.JedisPubSub;
 
 import java.util.Collection;
 import java.util.Scanner;
@@ -8,10 +11,13 @@ import java.util.UUID;
 
 public class Test {
 
-    public static void main(String[] args) throws ClassRegistrationException {
-        Objectis.init();
+    public static void main(String[] args) throws ClassRegistrationException, InterruptedException {
+        Objectis.init("", 6379);
         Objectis.register(Person.class);
         Objectis.flush();
+
+        Person aPerson = new Person("myID", 100, "N", "K");
+        Objectis.create(aPerson);
 
         for (int i = 0; i < 10; i++) {
             String uuid = UUID.randomUUID().toString();
@@ -42,6 +48,17 @@ public class Test {
         for (Person item : items) {
             System.out.println(item);
         }
+
+        aPerson.setAge(200);
+        Objectis.update(aPerson);
+
+//        Objectis.getJedis().subscribe(new BinaryJedisPubSub() {
+//            @Override
+//            public void onMessage(byte[] channel, byte[] message) {
+//                String s = new String(message);
+//                System.out.println(s);
+//            }
+//        }, PathMaker.getClassListPath(Person.class));
 
 
 //        final boolean exists = Objectis.exists(Person.class, uuid);

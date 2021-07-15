@@ -6,7 +6,7 @@ import com.sun.xml.internal.ws.encoding.soap.SerializationException;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 
-final class Serializer {
+public final class Serializer {
 
     public static byte[] serializeKey(String key) {
         return key.getBytes(StandardCharsets.UTF_8);

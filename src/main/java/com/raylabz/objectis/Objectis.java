@@ -2,18 +2,19 @@ package com.raylabz.objectis;
 
 import com.raylabz.objectis.exception.ClassRegistrationException;
 import com.raylabz.objectis.exception.OperationFailedException;
+import com.raylabz.objectis.pubsub.OperationType;
+import com.raylabz.objectis.pubsub.Publisher;
 import com.raylabz.objectis.query.ObjectisFilterable;
+import redis.clients.jedis.BinaryJedisPubSub;
 import redis.clients.jedis.Jedis;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Set;
-import java.util.Vector;
+import java.util.*;
 
 public final class Objectis {
 
     private static Jedis jedis;
+    private static Publisher publisher;
 
     private Objectis() { }
 
@@ -26,6 +27,8 @@ public final class Objectis {
      */
     public static void init(String host, int port, int timeout, boolean ssl) {
         jedis = new Jedis(host, port, timeout, ssl);
+        publisher = new Publisher(jedis);
+        publisher.start();
     }
 
     /**
@@ -35,6 +38,8 @@ public final class Objectis {
      */
     public static void init(String host, int port) {
         jedis = new Jedis(host, port);
+        publisher = new Publisher(jedis);
+        publisher.start();
     }
 
     /**
@@ -42,6 +47,8 @@ public final class Objectis {
      */
     public static void init() {
         jedis = new Jedis();
+        publisher = new Publisher(jedis);
+        publisher.start();
     }
 
     /**
@@ -50,6 +57,8 @@ public final class Objectis {
      */
     public static void init(Jedis jedis) {
         Objectis.jedis = jedis;
+        publisher = new Publisher(jedis);
+        publisher.start();
     }
 
     /**
@@ -102,6 +111,7 @@ public final class Objectis {
             jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
             final String idField = Reflector.getIDField(object);
             jedis.sadd(PathMaker.getClassListPath(object.getClass()), idField.getBytes(StandardCharsets.UTF_8));
+            publisher.publish(object.getClass(), idField, OperationType.CREATE, object);
         } catch (Exception e) {
             throw new OperationFailedException(e);
         }
@@ -115,8 +125,12 @@ public final class Objectis {
      */
     public static <T> void update(final T object) throws OperationFailedException {
         try {
-            create(object);
-        } catch (OperationFailedException e) {
+            checkRegistration(object);
+            jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
+            final String idField = Reflector.getIDField(object);
+            jedis.sadd(PathMaker.getClassListPath(object.getClass()), idField.getBytes(StandardCharsets.UTF_8));
+            publisher.publish(object.getClass(), idField, OperationType.UPDATE, object);
+        } catch (Exception e) {
             throw new OperationFailedException(e);
         }
     }
@@ -194,6 +208,7 @@ public final class Objectis {
             checkRegistration(aClass);
             final byte[] objectPathBytes = PathMaker.getObjectPath(aClass, id);
             jedis.del(objectPathBytes);
+            publisher.publish(aClass, id, OperationType.DELETE, null);
         } catch (Exception e) {
             throw new OperationFailedException(e);
         }
@@ -236,5 +251,17 @@ public final class Objectis {
     public static <T> ObjectisFilterable<T> filter(Class<T> aClass, Vector<T> items) {
         return new ObjectisFilterable<>(aClass, items);
     }
+
+    /**
+     * Retrieve the Jedis object.
+     * @return Returns a Jedis object.
+     */
+    public static Jedis getJedis() {
+        return jedis;
+    }
+
+//    public static <T> void addListener(Class<T> aClass, String id) {
+//
+//    }
 
 }

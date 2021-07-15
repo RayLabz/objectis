@@ -1,5 +1,7 @@
 package com.raylabz.objectis;
 
+import com.raylabz.objectis.pubsub.OperationType;
+
 import java.nio.charset.StandardCharsets;
 
 public class PathMaker {
@@ -11,7 +13,7 @@ public class PathMaker {
      * @throws NoSuchFieldException thrown when the object does not have an ID field.
      * @throws IllegalAccessException thrown when the ID field cannot be accessed.
      */
-    static byte[] getObjectPath(Object object) throws NoSuchFieldException, IllegalAccessException {
+    public static byte[] getObjectPath(Object object) throws NoSuchFieldException, IllegalAccessException {
         return Serializer.serializeKey(object.getClass().getName() + "/" + Reflector.getIDField(object));
     }
 
@@ -20,10 +22,8 @@ public class PathMaker {
      * @param aClass The class.
      * @param id The ID
      * @return Returns a byte[]
-     * @throws NoSuchFieldException thrown when the object does not have an ID field.
-     * @throws IllegalAccessException thrown when the ID field cannot be accessed.
      */
-    static byte[] getObjectPath(Class<?> aClass, String id) throws NoSuchFieldException, IllegalAccessException {
+    public static byte[] getObjectPath(Class<?> aClass, String id) {
         return Serializer.serializeKey(aClass.getName() + "/" + id);
     }
 
@@ -32,8 +32,12 @@ public class PathMaker {
      * @param aClass The class.
      * @return Returns a byte[].
      */
-    static byte[] getClassListPath(Class<?> aClass) {
+    public static byte[] getClassListPath(Class<?> aClass) {
         return Serializer.serializeKey(aClass.getName());
+    }
+
+    public static byte[] getPublishPath(Class<?> aClass, String id, OperationType opType) {
+        return ("__EVENT__" + aClass.getName() + "/" + id + ":" + opType).getBytes(StandardCharsets.UTF_8);
     }
 
 }
