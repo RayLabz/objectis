@@ -2,6 +2,7 @@ import com.raylabz.objectis.Objectis;
 import com.raylabz.objectis.exception.ClassRegistrationException;
 
 import java.util.Collection;
+import java.util.Scanner;
 import java.util.UUID;
 
 public class Test {
@@ -9,6 +10,7 @@ public class Test {
     public static void main(String[] args) throws ClassRegistrationException {
         Objectis.init();
         Objectis.register(Person.class);
+        Objectis.flush();
 
         for (int i = 0; i < 10; i++) {
             String uuid = UUID.randomUUID().toString();
@@ -27,9 +29,10 @@ public class Test {
 
         final long t = System.currentTimeMillis();
         final Collection<Person> items = Objectis.filter(Person.class)
-                .whereEqualTo("age", 20)
+                .whereLessThanOrEqualTo("age", 25)
                 .fetch();
         System.out.println("Filter: " + (System.currentTimeMillis() - t));
+//        new Scanner(System.in).nextLine();
 
         for (Person item : items) {
             System.out.println(item);

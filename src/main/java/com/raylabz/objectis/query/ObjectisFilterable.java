@@ -20,7 +20,7 @@ public class ObjectisFilterable<T> {
         classFields = aClass.getDeclaredFields();
     }
 
-    public ObjectisFilterable<T> whereEqualTo(String fieldName, Object value) {
+    public ObjectisFilterable<T> whereEqualTo(String fieldName, Object value) throws InvalidFieldException {
         final Field field = getField(fieldName);
         if (field == null) {
             throw new InvalidFieldException("The field '" + fieldName + "' does not exist in class '" + aClass.getSimpleName() + "'.");
@@ -43,6 +43,155 @@ public class ObjectisFilterable<T> {
             }
 
         } catch (IllegalAccessException e) {
+            throw new InvalidFieldException(e);
+        }
+
+        return this;
+    }
+
+    public ObjectisFilterable<T> whereNotEqualTo(String fieldName, Object value) throws InvalidFieldException {
+        final Field field = getField(fieldName);
+        if (field == null) {
+            throw new InvalidFieldException("The field '" + fieldName + "' does not exist in class '" + aClass.getSimpleName() + "'.");
+        }
+
+        try {
+            ArrayList<T> itemsToRemove = new ArrayList<>();
+            for (T temporaryItem : temporaryItems) {
+                boolean preAccessible = field.isAccessible();
+                field.setAccessible(true);
+                final Object objectValue = field.get(temporaryItem);
+                field.setAccessible(preAccessible);
+                if (objectValue.equals(value)) {
+                    itemsToRemove.add(temporaryItem);
+                }
+            }
+
+            for (T item : itemsToRemove) {
+                temporaryItems.remove(item);
+            }
+
+        } catch (IllegalAccessException e) {
+            throw new InvalidFieldException(e);
+        }
+
+        return this;
+    }
+
+    public <Y extends Comparable<?>> ObjectisFilterable<T> whereMoreThan(String fieldName, Y value) throws InvalidFieldException {
+        final Field field = getField(fieldName);
+        if (field == null) {
+            throw new InvalidFieldException("The field '" + fieldName + "' does not exist in class '" + aClass.getSimpleName() + "'.");
+        }
+
+        try {
+            ArrayList<T> itemsToRemove = new ArrayList<>();
+            for (T temporaryItem : temporaryItems) {
+                boolean preAccessible = field.isAccessible();
+                field.setAccessible(true);
+                final Object objectValue = field.get(temporaryItem);
+                final Comparable<Y> castedObject = value.getClass().cast(objectValue);
+                field.setAccessible(preAccessible);
+                if (castedObject.compareTo(value) < 1) {
+                    itemsToRemove.add(temporaryItem);
+                }
+            }
+
+            for (T item : itemsToRemove) {
+                temporaryItems.remove(item);
+            }
+
+        } catch (IllegalAccessException | ClassCastException e) {
+            throw new InvalidFieldException(e);
+        }
+
+        return this;
+    }
+
+    public <Y extends Comparable<?>> ObjectisFilterable<T> whereMoreThanOrEqual(String fieldName, Y value) throws InvalidFieldException {
+        final Field field = getField(fieldName);
+        if (field == null) {
+            throw new InvalidFieldException("The field '" + fieldName + "' does not exist in class '" + aClass.getSimpleName() + "'.");
+        }
+
+        try {
+            ArrayList<T> itemsToRemove = new ArrayList<>();
+            for (T temporaryItem : temporaryItems) {
+                boolean preAccessible = field.isAccessible();
+                field.setAccessible(true);
+                final Object objectValue = field.get(temporaryItem);
+                final Comparable<Y> castedObject = value.getClass().cast(objectValue);
+                field.setAccessible(preAccessible);
+                if (castedObject.compareTo(value) < 0) {
+                    itemsToRemove.add(temporaryItem);
+                }
+            }
+
+            for (T item : itemsToRemove) {
+                temporaryItems.remove(item);
+            }
+
+        } catch (IllegalAccessException | ClassCastException e) {
+            throw new InvalidFieldException(e);
+        }
+
+        return this;
+    }
+
+    public <Y extends Comparable<?>> ObjectisFilterable<T> whereLessThan(String fieldName, Y value) throws InvalidFieldException {
+        final Field field = getField(fieldName);
+        if (field == null) {
+            throw new InvalidFieldException("The field '" + fieldName + "' does not exist in class '" + aClass.getSimpleName() + "'.");
+        }
+
+        try {
+            ArrayList<T> itemsToRemove = new ArrayList<>();
+            for (T temporaryItem : temporaryItems) {
+                boolean preAccessible = field.isAccessible();
+                field.setAccessible(true);
+                final Object objectValue = field.get(temporaryItem);
+                final Comparable<Y> castedObject = value.getClass().cast(objectValue);
+                field.setAccessible(preAccessible);
+                if (castedObject.compareTo(value) > -1) {
+                    itemsToRemove.add(temporaryItem);
+                }
+            }
+
+            for (T item : itemsToRemove) {
+                temporaryItems.remove(item);
+            }
+
+        } catch (IllegalAccessException | ClassCastException e) {
+            throw new InvalidFieldException(e);
+        }
+
+        return this;
+    }
+
+    public <Y extends Comparable<?>> ObjectisFilterable<T> whereLessThanOrEqualTo(String fieldName, Y value) throws InvalidFieldException {
+        final Field field = getField(fieldName);
+        if (field == null) {
+            throw new InvalidFieldException("The field '" + fieldName + "' does not exist in class '" + aClass.getSimpleName() + "'.");
+        }
+
+        try {
+            ArrayList<T> itemsToRemove = new ArrayList<>();
+            for (T temporaryItem : temporaryItems) {
+                boolean preAccessible = field.isAccessible();
+                field.setAccessible(true);
+                final Object objectValue = field.get(temporaryItem);
+                final Comparable<Y> castedObject = value.getClass().cast(objectValue);
+                field.setAccessible(preAccessible);
+                if (castedObject.compareTo(value) > 0) {
+                    itemsToRemove.add(temporaryItem);
+                }
+            }
+
+            for (T item : itemsToRemove) {
+                temporaryItems.remove(item);
+            }
+
+        } catch (IllegalAccessException | ClassCastException e) {
             throw new InvalidFieldException(e);
         }
 
