@@ -1,3 +1,4 @@
+import com.raylabz.objectis.annotation.Index;
 import com.raylabz.objectis.annotation.ObjectisObject;
 
 import java.io.Serializable;
@@ -8,7 +9,7 @@ public class Person implements Serializable {
 
     private String id;
     private int age;
-    private String name;
+    @Index private String name;
     private String lastname;
     private ArrayList<String> friendNames = new ArrayList<>();
 

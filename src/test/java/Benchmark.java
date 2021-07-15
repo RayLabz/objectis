@@ -32,7 +32,7 @@ public class Benchmark {
             p.addFriend("c");
 
             final long l = System.currentTimeMillis();
-            Objectis.set(p);
+            Objectis.create(p);
             times.add(System.currentTimeMillis() - l);
             ids.add(id);
 

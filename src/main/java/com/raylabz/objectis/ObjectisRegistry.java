@@ -2,14 +2,11 @@ package com.raylabz.objectis;
 
 import com.raylabz.objectis.exception.ClassRegistrationException;
 
-import java.lang.reflect.Field;
-import java.util.HashMap;
 import java.util.HashSet;
 
 public class ObjectisRegistry {
 
     private static final HashSet<Class<?>> REGISTERED_CLASSES = new HashSet<>();
-//    private static final HashMap<Class<?>, Field> CLASS_ID_FIELDS = new HashMap<>();
 
     /**
      * Checks a class for a valid structure and registers it.
