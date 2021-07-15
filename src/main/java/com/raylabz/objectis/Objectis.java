@@ -2,8 +2,10 @@ package com.raylabz.objectis;
 
 import com.raylabz.objectis.exception.ClassRegistrationException;
 import com.raylabz.objectis.exception.OperationFailedException;
+import com.raylabz.objectis.query.ObjectisFilterable;
 import redis.clients.jedis.Jedis;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Set;
@@ -97,8 +99,9 @@ public final class Objectis {
         try {
             checkRegistration(object);
             jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
-            jedis.sadd(PathMaker.getClassListPath(object.getClass()), Serializer.serializeObject(object));
-        } catch (IllegalAccessException | NoSuchFieldException | ClassRegistrationException e) {
+            final String idField = Reflector.getIDField(object);
+            jedis.sadd(PathMaker.getClassListPath(object.getClass()), idField.getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
             throw new OperationFailedException(e);
         }
     }
@@ -130,7 +133,7 @@ public final class Objectis {
             checkRegistration(aClass);
             final byte[] bytes = jedis.get(PathMaker.getObjectPath(aClass, id));
             return Serializer.deserializeObject(bytes, aClass);
-        } catch (ClassRegistrationException | NoSuchFieldException | IllegalAccessException e) {
+        } catch (Exception e) {
             throw new OperationFailedException(e);
         }
     }
@@ -155,8 +158,8 @@ public final class Objectis {
                 items.add(object);
             }
             return items;
-        } catch (ClassRegistrationException | NoSuchFieldException | IllegalAccessException e) {
-            throw new OperationFailedException(e.getMessage());
+        } catch (Exception e) {
+            throw new OperationFailedException(e);
         }
     }
 
@@ -173,7 +176,7 @@ public final class Objectis {
             checkRegistration(aClass);
             final byte[] objectPathBytes = PathMaker.getObjectPath(aClass, id);
             return jedis.get(objectPathBytes) != null;
-        } catch (NoSuchFieldException | IllegalAccessException | ClassRegistrationException e) {
+        } catch (Exception e) {
             throw new OperationFailedException(e);
         }
     }
@@ -190,7 +193,7 @@ public final class Objectis {
             checkRegistration(aClass);
             final byte[] objectPathBytes = PathMaker.getObjectPath(aClass, id);
             jedis.del(objectPathBytes);
-        } catch (ClassRegistrationException | NoSuchFieldException | IllegalAccessException e) {
+        } catch (Exception e) {
             throw new OperationFailedException(e);
         }
     }
@@ -207,9 +210,13 @@ public final class Objectis {
             final String id = Reflector.getIDField(object);
             final byte[] objectPathBytes = PathMaker.getObjectPath(object.getClass(), id);
             jedis.del(objectPathBytes);
-        } catch (ClassRegistrationException | NoSuchFieldException | IllegalAccessException e) {
+        } catch (Exception e) {
             throw new OperationFailedException(e);
         }
+    }
+
+    public static <T> ObjectisFilterable<T> filter(Class<T> aClass) {
+        return new ObjectisFilterable<>(aClass);
     }
 
 }

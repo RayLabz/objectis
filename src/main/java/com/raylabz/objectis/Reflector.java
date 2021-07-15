@@ -26,11 +26,6 @@ final class Reflector {
             throw new ClassRegistrationException("The class '" + clazz.getSimpleName() + "' needs to implement the Serializable interface.");
         }
 
-        //Check if object class has an no-parameter constructor:
-//        if (!hasEmptyConstructor(clazz)) {
-//            throw new FirestormObjectException("The class '" + clazz.getSimpleName() + "' does not have an empty (no-parameter) constructor.");
-//        }
-
         Field idField = null;
         Class<?> idFieldType = null;
 

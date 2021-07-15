@@ -1,6 +1,7 @@
 import com.raylabz.objectis.Objectis;
 import com.raylabz.objectis.exception.ClassRegistrationException;
 
+import java.util.Collection;
 import java.util.UUID;
 
 public class Test {
@@ -9,20 +10,39 @@ public class Test {
         Objectis.init();
         Objectis.register(Person.class);
 
-        String uuid = UUID.randomUUID().toString();
-        Person x = new Person(uuid, 20, "N", "K");
-        x.addFriend("a");
-        x.addFriend("b");
-        x.addFriend("c");
+        for (int i = 0; i < 10; i++) {
+            String uuid = UUID.randomUUID().toString();
+            Person x = new Person(uuid, i + 20, "N" + i, "K" + i);
+            x.addFriend("a");
+            x.addFriend("b");
+            x.addFriend("c");
+            Objectis.create(x);
+        }
 
-        Objectis.create(x);
-        final boolean exists = Objectis.exists(Person.class, uuid);
-        System.out.println(exists);
+        final Collection<Person> list = Objectis.list(Person.class);
+        for (Person person : list) {
+            System.out.println(person);
+        }
 
-        Objectis.delete(Person.class, uuid);
 
-        final boolean exists1 = Objectis.exists(Person.class, uuid);
-        System.out.println(exists1);
+        final long t = System.currentTimeMillis();
+        final Collection<Person> items = Objectis.filter(Person.class)
+                .whereEqualTo("age", 20)
+                .fetch();
+        System.out.println("Filter: " + (System.currentTimeMillis() - t));
+
+        for (Person item : items) {
+            System.out.println(item);
+        }
+
+
+//        final boolean exists = Objectis.exists(Person.class, uuid);
+//        System.out.println(exists);
+//
+//        Objectis.delete(Person.class, uuid);
+//
+//        final boolean exists1 = Objectis.exists(Person.class, uuid);
+//        System.out.println(exists1);
 
     }
 
