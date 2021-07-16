@@ -23,18 +23,18 @@ Maven:
 <dependency>
   <groupId>com.raylabz</groupId>
   <artifactId>objectis</artifactId>
-  <version>0.0.1</version>
+  <version>0.0.2</version>
 </dependency>
 ```
 
 Gradle:
 ```xml
-implementation 'com.raylabz:objectis:0.0.1'
+implementation 'com.raylabz:objectis:0.0.2'
 ```
 
 Download as .jar file:
 
-[Download](https://oss.sonatype.org/service/local/artifact/maven/redirect?r=releases&g=com.raylabz&a=objectis&v=0.0.1&e=jar)
+[Download](https://oss.sonatype.org/service/local/artifact/maven/redirect?r=releases&g=com.raylabz&a=objectis&v=0.0.2&e=jar)
 
 ## Documentation
 

@@ -456,8 +456,8 @@ public class ObjectisFilterable<T> {
      * Fetches the result.
      * @return Returns a collection of objects.
      */
-    public Collection<T> fetch() {
-        return temporaryItems;
+    public ArrayList<T> fetch() {
+        return new ArrayList<>(temporaryItems);
     }
 
     /**
