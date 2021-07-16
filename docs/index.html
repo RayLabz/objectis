@@ -140,6 +140,7 @@ Objectis.init(jedis); //Initialize using a pre-existing Jedis object.</pre>
 
             <ul class="browser-default">
                 <li>Be annotated with the <span class="code">@ObjectisObject</span> annotation.</li>
+                <li>Must extend the Serializable interface.</li>
                 <li>Have an attribute called <span class="code">id</span> of type String, or extend a class that has this field.</li>
                 <li>Have an empty (no-parameter) constructor (access modifier does not matter).</li>
             </ul>
@@ -148,7 +149,7 @@ Objectis.init(jedis); //Initialize using a pre-existing Jedis object.</pre>
 
             <pre class="prettyprint java">
 <mark>@ObjectisObject</mark>
-public class Person {
+public class Person implements Serializable {
 
     <mark>private String id;</mark>
     private String firstName;
@@ -201,7 +202,7 @@ Objectis.register(Person.class);</pre>
             <pre class="prettyprint java">
 Objectis.create(person);</pre>
 
-            <div class="info-panel orange darken-3 white-text">
+            <div class="info-panel light-blue white-text">
                 Creating an item with the same ID as another existing item of the same class will replace the existing item.
             </div>
 
@@ -284,7 +285,7 @@ Objectis.delete(Person.class, id);</pre>
             <h4 id="filtering">Filtering</h4>
 
             <p>
-                Objectis allows you to easily query and filter results using the <span class="code">filter()</span>
+                Objectis allows you to easily query and filter results based on your class fields using the <span class="code">filter()</span>
                 method. This method expects a class as a parameter and will return an <span class="code">ObjectisFilterable</span>
                 object which can be used to filter your objects:
             </p>
@@ -395,6 +396,17 @@ final Collection&lt;Person&gt; items = Objectis.filter(Person.class)
                 </tbody>
             </table>
 
+            <div class="info-panel light-blue white-text">
+                Fields must implement the <span class="code">Comparable</span> interface in order to use the following filter methods:
+                <ul>
+                    <li><span class="code">whereLessThan</span></li>
+                    <li><span class="code">whereLessThanOrEqualTo</span></li>
+                    <li><span class="code">whereGreaterThan</span></li>
+                    <li><span class="code">whereGreaterThanOrEqualTo</span></li>
+                </ul>
+                This is applied by default on basic data types and their boxed counterparts.
+            </div>
+
             <hr/>
 
             <!---------------------------------------------------------------------------------------------------->
@@ -431,7 +443,7 @@ GET Person/MyID</pre>
             <pre class="prettyprint">
 com.mypackage.model.Person/myID</pre>
 
-            <div class="info-panel orange darken-3 white-text">
+            <div class="info-panel light-blue white-text">
                 Your custom client or CLI will retrieve data in raw bytes, which you will then need to manually
                 de-serialize if you are not using Objectis.
             </div>
