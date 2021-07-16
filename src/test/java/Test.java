@@ -1,5 +1,6 @@
 import com.raylabz.objectis.Objectis;
 import com.raylabz.objectis.PathMaker;
+import com.raylabz.objectis.Serializer;
 import com.raylabz.objectis.exception.ClassRegistrationException;
 import com.raylabz.objectis.query.OrderDirection;
 import redis.clients.jedis.BinaryJedisPubSub;
@@ -51,6 +52,19 @@ public class Test {
 
         aPerson.setAge(200);
         Objectis.update(aPerson);
+        Thread.sleep(1000);
+
+        aPerson.setAge(300);
+        Objectis.update(aPerson);
+        Thread.sleep(1000);
+
+        aPerson.setAge(400);
+        Objectis.update(aPerson);
+        Thread.sleep(1000);
+
+        aPerson.setAge(500);
+        Objectis.update(aPerson);
+        Thread.sleep(1000);
 
 //        Objectis.getJedis().subscribe(new BinaryJedisPubSub() {
 //            @Override
