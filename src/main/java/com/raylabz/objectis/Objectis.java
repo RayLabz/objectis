@@ -2,12 +2,8 @@ package com.raylabz.objectis;
 
 import com.raylabz.objectis.exception.ClassRegistrationException;
 import com.raylabz.objectis.exception.OperationFailedException;
-//import com.raylabz.objectis.pubsub.OperationType;
-//import com.raylabz.objectis.pubsub.Publisher;
 import com.raylabz.objectis.query.ObjectisFilterable;
-import redis.clients.jedis.BinaryJedisPubSub;
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
