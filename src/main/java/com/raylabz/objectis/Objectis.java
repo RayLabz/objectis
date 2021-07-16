@@ -7,6 +7,7 @@ import com.raylabz.objectis.exception.OperationFailedException;
 import com.raylabz.objectis.query.ObjectisFilterable;
 import redis.clients.jedis.BinaryJedisPubSub;
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -16,6 +17,9 @@ public final class Objectis {
     private static Jedis jedis;
 //    private static Publisher publisher;
 
+    /**
+     * Private constructor.
+     */
     private Objectis() { }
 
     /**
@@ -147,6 +151,9 @@ public final class Objectis {
         try {
             checkRegistration(aClass);
             final byte[] bytes = jedis.get(PathMaker.getObjectPath(aClass, id));
+            if (bytes == null) {
+                return null;
+            }
             return Serializer.deserializeObject(bytes, aClass);
         } catch (Exception e) {
             throw new OperationFailedException(e);
@@ -208,6 +215,7 @@ public final class Objectis {
             checkRegistration(aClass);
             final byte[] objectPathBytes = PathMaker.getObjectPath(aClass, id);
             jedis.del(objectPathBytes);
+            jedis.srem(PathMaker.getClassListPath(aClass), Serializer.serializeKey(id));
 //            publisher.publish(aClass, id, OperationType.DELETE, null);
         } catch (Exception e) {
             throw new OperationFailedException(e);
@@ -226,6 +234,7 @@ public final class Objectis {
             final String id = Reflector.getIDField(object);
             final byte[] objectPathBytes = PathMaker.getObjectPath(object.getClass(), id);
             jedis.del(objectPathBytes);
+            jedis.srem(PathMaker.getClassListPath(object.getClass()), Serializer.serializeKey(id));
         } catch (Exception e) {
             throw new OperationFailedException(e);
         }

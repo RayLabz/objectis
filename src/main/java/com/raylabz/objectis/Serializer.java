@@ -12,7 +12,7 @@ public final class Serializer {
         return key.getBytes(StandardCharsets.UTF_8);
     }
 
-    public static byte[] serializeObject(Object object) {
+    public static byte[] serializeObject(Object object) throws SerializationException {
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
             ObjectOutputStream out = new ObjectOutputStream(bos);
             out.writeObject(object);
@@ -23,7 +23,7 @@ public final class Serializer {
         }
     }
 
-    public static <T> T deserializeObject(byte[] bytes, Class<T> aClass) {
+    public static <T> T deserializeObject(byte[] bytes, Class<T> aClass) throws DeserializationException {
         ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
         try (ObjectInput in = new ObjectInputStream(bis)) {
             Object o = in.readObject();

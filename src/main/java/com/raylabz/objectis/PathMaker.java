@@ -1,7 +1,5 @@
 package com.raylabz.objectis;
 
-import com.raylabz.objectis.pubsub.OperationType;
-
 import java.nio.charset.StandardCharsets;
 
 public class PathMaker {
@@ -36,8 +34,8 @@ public class PathMaker {
         return Serializer.serializeKey(aClass.getName());
     }
 
-    public static byte[] getPublishPath(Class<?> aClass, String id, OperationType opType) {
-        return ("__EVENT__" + aClass.getName() + "/" + id + ":" + opType).getBytes(StandardCharsets.UTF_8);
-    }
+//    public static byte[] getPublishPath(Class<?> aClass, String id, OperationType opType) {
+//        return ("__EVENT__" + aClass.getName() + "/" + id + ":" + opType).getBytes(StandardCharsets.UTF_8);
+//    }
 
 }

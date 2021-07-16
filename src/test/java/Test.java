@@ -14,6 +14,7 @@ public class Test {
 
     public static void main(String[] args) throws ClassRegistrationException, InterruptedException {
         Objectis.init("", 6379);
+//        Objectis.init("192.168.10.1", 6379, 30, true);
         Objectis.register(Person.class);
         Objectis.flush();
 
@@ -33,6 +34,11 @@ public class Test {
             System.out.println(person);
         }
 
+        new Scanner(System.in).nextLine();
+
+        Objectis.delete(aPerson);
+
+        new Scanner(System.in).nextLine();
 
         final long t = System.currentTimeMillis();
         final Collection<Person> items = Objectis.filter(Person.class)
@@ -49,22 +55,6 @@ public class Test {
         for (Person item : items) {
             System.out.println(item);
         }
-
-        aPerson.setAge(200);
-        Objectis.update(aPerson);
-        Thread.sleep(1000);
-
-        aPerson.setAge(300);
-        Objectis.update(aPerson);
-        Thread.sleep(1000);
-
-        aPerson.setAge(400);
-        Objectis.update(aPerson);
-        Thread.sleep(1000);
-
-        aPerson.setAge(500);
-        Objectis.update(aPerson);
-        Thread.sleep(1000);
 
 //        Objectis.getJedis().subscribe(new BinaryJedisPubSub() {
 //            @Override

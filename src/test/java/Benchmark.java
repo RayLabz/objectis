@@ -8,14 +8,14 @@ public class Benchmark {
 
     public static void main(String[] args) throws ClassRegistrationException {
         Objectis.register(Person.class);
-        Objectis.init();
+        Objectis.init("localhost", 6379, 0, false);
         Objectis.flush();
 
         final ArrayList<String> ids = createBenchmark();
-        getBenchmark(ids);
+//        getBenchmark(ids);
         listBenchmark();
-        existsBenchmark(ids);
-        deleteBenchmark(ids);
+//        existsBenchmark(ids);
+//        deleteBenchmark(ids);
 
     }
 
@@ -69,7 +69,7 @@ public class Benchmark {
 
     public static void listBenchmark() {
         ArrayList<Long> times = new ArrayList<>();
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 1; i++) {
             final long t = System.currentTimeMillis();
             Objectis.list(Person.class);
             times.add(System.currentTimeMillis() - t);
@@ -81,7 +81,7 @@ public class Benchmark {
         }
 
         double average = sum / (double) times.size();
-        System.out.println("Average list() time: " + String.format("%.2f", average) + " ms");
+        System.out.println("Average list() time: " + String.format("%.2f", average) + " ms" + "  [entries: " + times.size() + "]");
     }
 
     public static void existsBenchmark(ArrayList<String> ids) {

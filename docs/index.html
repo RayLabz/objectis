@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0"/>
+    <link rel="shortcut icon" type="image/png" href="images/objectis-logo.png"/>
+    <meta name="theme-color" content="#c62828"/>
+    <title>Objectis - RayLabz</title>
+
+    <!-- CSS  -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="css/materialize.css" type="text/css" rel="stylesheet" media="screen,projection"/>
+    <link href="css/style.css" type="text/css" rel="stylesheet" media="screen,projection"/>
+    <style>
+        h3 {
+            text-shadow: 1px 1px 2px grey;
+        }
+    </style>
+</head>
+<body>
+
+<!--<nav>-->
+<!--    <div class="nav-wrapper orange darken-4"></div>-->
+<!--</nav>-->
+
+<main>
+
+    <div class="section no-pad-bot" id="index-banner">
+        <div class="container">
+            <br>
+            <h1 class="header center red-text text-darken-3">Objectis</h1>
+            <br>
+            <div class="row center">
+                <img class="responsive-img" src="images/objectis-logo.png" width="200"/>
+            </div>
+            <div class="row center">
+                <h4 class="header col s12 light">An object-oriented data access API for the Redis cache</h4>
+            </div>
+
+            <div class="row center">
+                <p class="justify col s12 m6 offset-m3">
+                    Objectis is a Java library that allows you to quickly manage data in Redis in an object-oriented way.
+                    Through Objectis, you can easily save, retrieve, list, delete and filter <i>objects</i> instead of Strings
+                    or raw data within your Redis cache.
+                </p>
+            </div>
+
+            <hr/>
+
+            <h3>Contents</h3>
+
+            <ul class="browser-default">
+                <li><a href="#downloadAndImport">Download and import</a>
+                <li><a href="#guide">Guide</a>
+                    <ul class="browser-default">
+                        <li><a href="#classes">Using object and classes</a></li>
+                        <li><a href="#initialization">Initialization</a></li>
+                        <li><a href="#registering">Registering classes</a></li>
+                        <li><a href="#basicOperations">Operations</a>
+                            <ul class="browser-default">
+                                <li><a href="#create">Create</a></li>
+                                <li><a href="#get">Get</a></li>
+                                <li><a href="#exists">Exists</a></li>
+                                <li><a href="#update">Update</a></li>
+                                <li><a href="#list">List</a></li>
+                                <li><a href="#delete">Delete</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="#filtering">Filtering</a>
+                            <ul class="browser-default">
+                                <li><a href="#filtersReference">Filters reference</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="#keys">Keys</a>
+                            <ul class="browser-default">
+                                <li><a href="#objectKeys">Object keys</a></li>
+                                <li><a href="#classListKeys">Class list keys</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+                <li><a href="#documentation">Documentation</a></li>
+                <li><a href="#sourceCode">Source code</a></li>
+                <li><a href="#usage">License</a></li>
+                <li><a href="#bugreport">Bug reporting</a></li>
+            </ul>
+
+            <h3 id="downloadAndImport">Download and import</h3>
+
+            <p>You can easily import Objectis in your project using Maven or Gradle:</p>
+
+            <p><b><u>Maven:</u></b></p>
+
+            <pre class="prettyprint">&lt;dependency&gt;
+  &lt;groupId&gt;com.raylabz&lt;/groupId&gt;
+  &lt;artifactId&gt;objectis&lt;/artifactId&gt;
+  &lt;version&gt;0.0.1&lt;/version&gt;
+&lt;/dependency&gt;</pre>
+
+            <p><b><u>Gradle:</u></b></p>
+
+            <pre class="prettyprint">implementation 'com.raylabz:objectis:0.0.1'</pre>
+
+            <p>
+                Alternatively, you can download Objectis as a .jar file:
+            </p>
+
+            <a class="btn btn-flat red darken-3 white-text" href="https://oss.sonatype.org/service/local/artifact/maven/redirect?r=releases&g=com.raylabz&a=objectis&v=0.0.1&e=jar">Download Jar</a>
+
+            <h3 id="guide">Guide</h3>
+
+            <h4 id="initialization">Initialization</h4>
+
+            <p>To use Objectis, you first need to call <span class="code">Objectis.init()</span>. The function can take
+            several parameters:
+
+            <pre class="prettyprint java">
+Objectis.init(); //Initialize for localhost on default port (6379)</pre>
+
+            <pre class="prettyprint java">
+Objectis.init("192.168.10.1", 6379); //Initialize for specific IP and port.</pre>
+
+            <pre class="prettyprint">
+Objectis.init("192.168.10.1", 6379, 30, true); //Initialize for specific IP and port, with a timeout and using SSL.</pre>
+
+            <pre class="prettyprint">
+Objectis.init(jedis); //Initialize using a pre-existing Jedis object.</pre>
+
+
+            <h4 id="classes">Using objects and classes</h4>
+
+            <p class="justify">
+                Objectis can utilize your existing classes and save their instance in a Redis cache. To enable this, your classes
+                have to follow several rules:
+            </p>
+
+            <ul class="browser-default">
+                <li>Be annotated with the <span class="code">@ObjectisObject</span> annotation.</li>
+                <li>Have an attribute called <span class="code">id</span> of type String, or extend a class that has this field.</li>
+                <li>Have an empty (no-parameter) constructor (access modifier does not matter).</li>
+            </ul>
+
+            <p>The following code shows an example on how to create and properly annotate a class:</p>
+
+            <pre class="prettyprint java">
+<mark>@ObjectisObject</mark>
+public class Person {
+
+    <mark>private String id;</mark>
+    private String firstName;
+    private String lastName;
+    private int age;
+
+    public Person(String firstName, String lastName, int age) {
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.age = age;
+    }
+
+    <mark>private Person() {</mark>
+    <mark>}</mark>
+
+    //Setters, getters and other methods...
+
+}</pre>
+
+            <hr/>
+
+            <h4 id="registering">Registering classes</h4>
+
+            <p class="justify">
+                Before you can use your class, you also need to register it with Objectis. Each class needs to be registered <b>only once</b>.
+                This process is necessary as Objectis will check your classes for the above requirements and will index its fields.
+                You can register your class <b>after initializing Objectis</b>, by using the <span class="code">register()</span> method, providing your class as a parameter:
+            </p>
+
+            <pre class="prettyprint java">
+Objectis.register(Person.class);</pre>
+
+            <div class="info-panel red white-text">
+                The <span class="code">register()</span> method will throw a runtime exception (<span class="code">ClassRegistrationException</span>) when the conditions stated above are not met by the class being registered.
+            </div>
+
+            <hr/>
+
+            <h4 id="basicOperations">Basic operations</h4>
+
+            <!---------------------------------------------------------------------------------------------------->
+
+            <h5 id="create">Create</h5>
+
+            <p>
+                You can create objects in Redis using Objectis by using <span class="code">Objectis.create()</span> and providing
+                an instance of your custom class:
+            </p>
+
+            <pre class="prettyprint java">
+Objectis.create(person);</pre>
+
+            <div class="info-panel orange darken-3 white-text">
+                Creating an item with the same ID as another existing item of the same class will replace the existing item.
+            </div>
+
+            <!---------------------------------------------------------------------------------------------------->
+
+            <h5 id="get">Get</h5>
+
+            <p>
+                You can retrieve objects from Redis by using <span class="code">Objectis.get()</span> and providing the class of the object and an ID:
+            </p>
+
+            <pre class="prettyprint java">
+Person person = Objectis.get(Person.class, id);</pre>
+
+            <p>
+                The <span class="code">get()</span> method will return <span class="code">null</span> when the object does not exist. If Objectis fails to fetch the object from Redis
+                for any reason, the method will throw an <span class="code">OperationFailedException</span>.
+            </p>
+
+            <!---------------------------------------------------------------------------------------------------->
+
+            <h5 id="exists">Exists</h5>
+
+            <p>You can check if an object exists on Redis by providing its class and an ID:</p>
+
+            <pre class="prettyprint java">
+if (Objectis.exists(Person.class, id)) {
+    //TODO - Document exists...
+}
+else {
+    //TODO - Document does not exist...
+}</pre>
+
+            <!---------------------------------------------------------------------------------------------------->
+
+
+            <h5 id="update">Update</h5>
+
+            <p>
+                You can update objects by using <span class="code">Objectis.update()</span> and providing your object:
+            </p>
+
+            <pre class="prettyprint java">
+Objectis.update(person);</pre>
+
+            <!---------------------------------------------------------------------------------------------------->
+
+            <h5 id="list">List</h5>
+
+            <p>
+                Objectis supports fetching objects of a given type using the <span class="code">Objectis.list()</span>
+                method.
+            </p>
+
+            <pre class="prettyprint java">
+ArrayList&lt;Person&gt; peopleList = Objectis.list(Person.class);</pre>
+
+            <!---------------------------------------------------------------------------------------------------->
+
+            <h5 id="delete">Delete</h5>
+
+            <p>
+                You can delete an object from Redis by using the <span class="code">Objectis.delete()</span> method.
+            </p>
+
+            <pre class="prettyprint java">
+Objectis.delete(person);</pre>
+
+            <p>
+                Alternatively, you may also use the object class and an object's ID:
+            </p>
+
+            <pre class="prettyprint java">
+Objectis.delete(Person.class, id);</pre>
+
+            <hr/>
+
+            <!---------------------------------------------------------------------------------------------------->
+
+            <h4 id="filtering">Filtering</h4>
+
+            <p>
+                Objectis allows you to easily query and filter results using the <span class="code">filter()</span>
+                method. This method expects a class as a parameter and will return an <span class="code">ObjectisFilterable</span>
+                object which can be used to filter your objects:
+            </p>
+
+            <pre class="prettyprint java">
+final ObjectisFilterable&lt;Person&gt; filter = Objectis.filter(Person.class);</pre>
+
+            <p>
+                Items can be filtered using several methods. It is preferable to chain these methods in order
+                to make the code easier to read. The following example shows how to obtain an object of type Person,
+                for which the field firstName is equal to "John" and the age is greater than 10. The results are ordered
+                by the field "age" and a total of 5 results are retrieved.
+            </p>
+
+            <pre class="prettyprint java">
+final ObjectisFilterable&lt;Person&gt; filter = Objectis.filter(Person.class)
+        .whereEqualTo("firstName", "John")
+        .whereGreaterThan("age", 10)
+        .orderBy("age")
+        .limit(5);</pre>
+
+            <p>
+                You can get the results of a filter by using the <span class="code">fetch()</span> method.
+                This returns a collection containing the items:
+            </p>
+
+            <pre class="prettyprint java">
+final Collection&lt;Person&gt; items = Objectis.filter(Person.class)
+        .whereEqualTo("firstName", "John")
+        .whereGreaterThan("age", 10)
+        .orderBy("age")
+        .limit(5)
+        .fetch();</pre>
+
+            <!---------------------------------------------------------------------------------------------------->
+
+            <h5 id="filtersReference">Filters reference</h5>
+
+            <p>
+                The following is a table of filters, ordering, limits etc. which can be applied to a query via the
+                <span class="code">filter()</span> method:
+            </p>
+
+            <table class="responsive-table highlight">
+                <thead>
+                <tr>
+                    <th>Method</th>
+                    <th>Use</th>
+                    <th>Params</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>whereEqualTo</td>
+                    <td>Returns objects that have a field with a value equal to the given value.</td>
+                    <td>Field name, value</td>
+                </tr>
+                <tr>
+                    <td>whereLessThan</td>
+                    <td>Returns objects that have a field with a value less than the given value.</td>
+                    <td>Field name, value</td>
+                </tr>
+                <tr>
+                    <td>whereLessThanOrEqualTo</td>
+                    <td>Returns objects that have a field with a value less than or equal to the given value.</td>
+                    <td>Field name, value</td>
+                </tr>
+                <tr>
+                    <td>whereGreaterThan</td>
+                    <td>Returns objects that have a field with a value greater than the given value.</td>
+                    <td>Field name, value</td>
+                </tr>
+                <tr>
+                    <td>whereGreaterThanOrEqualTo</td>
+                    <td>Returns objects that have a field with a value greater than or equal to the given value.</td>
+                    <td>Field name, value</td>
+                </tr>
+                <tr>
+                    <td>whereArrayContains</td>
+                    <td>Returns objects that have a field (array) containing the given value.</td>
+                    <td>Field name, value</td>
+                </tr>
+                <tr>
+                    <td>whereArrayContainsAny</td>
+                    <td>Returns objects that have a field (array) containing any of a given list of values.</td>
+                    <td>Field name, values</td>
+                </tr>
+                <tr>
+                    <td>orderBy</td>
+                    <td>Returns objects ordered by a specific field.</td>
+                    <td>Field name, Direction of order</td>
+                </tr>
+                <tr>
+                    <td>limit</td>
+                    <td>Limits the number of results returned by the query.</td>
+                    <td>Limit (number)</td>
+                </tr>
+                <tr>
+                    <td>offset</td>
+                    <td>Offsets the query's start position by a given amount.</td>
+                    <td>Offset(number)</td>
+                </tr>
+                <tr>
+                    <td>fetch</td>
+                    <td>Fetches the results of the query.</td>
+                    <td>-</td>
+                </tr>
+                </tbody>
+            </table>
+
+            <hr/>
+
+            <!---------------------------------------------------------------------------------------------------->
+
+            <h4 id="keys">Keys</h4>
+
+            <h5 id="objectKeys">Object keys</h5>
+
+            <p>
+                In some cases, you may need to manage your data using the Redis CLI client or do it manually from another client.
+                In such cases you need to be able to form the keys manually, without Objectis' support.
+            </p>
+
+            <p>
+                Objectis creates objects keys based on the class of your object
+                and its ID. For example, when an object is of class Person, and has an ID "myID", Objectis will form
+                the following key and store your object there:
+            </p>
+
+            <pre class="prettyprint">
+Person/myID</pre>
+
+            <p>The Redis command to retrieve this object would be:</p>
+
+            <pre class="prettyprint">
+GET Person/MyID</pre>
+
+            <p>
+                If your class exists within a package, the key will be formed based on the fully evaluated name of the class
+                (including the package). For example, if your Person class exists inside the package com.mypackage.model,
+                Objectis will form the following key:
+            </p>
+
+            <pre class="prettyprint">
+com.mypackage.model.Person/myID</pre>
+
+            <div class="info-panel orange darken-3 white-text">
+                Your custom client or CLI will retrieve data in raw bytes, which you will then need to manually
+                de-serialize if you are not using Objectis.
+            </div>
+
+            <h5 id="classListKeys">Class list keys</h5>
+
+            <p>
+                To enable objects to be stored as collections of data, Objectis uses unordered sets containing their IDs.
+                The keys to these sets are created based on the class name. For example, the fully evaluted class name can be
+                used to obtain a set of all saved instances of that class:
+            </p>
+
+            <pre class="prettyprint">
+com.mypackage.model.Person</pre>
+
+            <p>
+                Redis command to retrieve all instance of class Person:
+            </p>
+
+            <pre class="prettyprint">
+SMEMBERS com.mypackage.model.Person</pre>
+
+            <!--------------------------------------------------------------------------------------------------------->
+
+            <br/>
+            <hr/>
+
+            <h3 id="documentation">Documentation</h3>
+
+            <p><a href="javadoc">View the documentation.</a></p>
+
+            <hr/>
+
+            <h3 id="usage">License</h3>
+
+            <p>
+                Objectis is released under the <a href="https://github.com/RayLabz/objectis/blob/master/LICENSE">Apache License</a>.
+            </p>
+
+            <hr/>
+
+            <h3 id="sourceCode">Source code</h3>
+
+            <p>
+                You can find the source code at the project's repository <a
+                    href="https://github.com/RayLabz/objectis/">here</a>.
+            </p>
+
+            <hr/>
+
+            <h3 id="bugreport">Bug reporting</h3>
+
+            <p>Please report bugs <a href="mailto:RayLabzg@gmail.com?subject=Objectis">here</a>.</p>
+
+            <br/><br/>
+        </div>
+    </div>
+
+</main>
+
+<footer class="page-footer red darken-3">
+    <div class="container">
+        <div class="center light">Made by <a class="white-text" href="http://www.RayLabz.com">RayLabz</a></div>
+        <br/>
+    </div>
+</footer>
+
+
+<!--  Scripts-->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="js/materialize.js"></script>
+<script src="js/init.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/google/code-prettify@master/loader/run_prettify.js"></script>
+
+</body>
+</html>

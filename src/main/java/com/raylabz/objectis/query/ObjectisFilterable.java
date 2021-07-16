@@ -114,6 +114,7 @@ public class ObjectisFilterable<T> {
      * Filters by a field's value being greater than the one provided.
      * @param fieldName The field name.
      * @param value The value provided.
+     * @param <Y> The type of comparable object to use.
      * @return Returns a filterable.
      * @throws InvalidFieldException thrown when the field cannot be accessed or does not exist.
      */
@@ -151,6 +152,7 @@ public class ObjectisFilterable<T> {
      * Filters by a field's value being greater than or equal to the one provided.
      * @param fieldName The field name.
      * @param value The value provided.
+     * @param <Y> The type of comparable object to use.
      * @return Returns a filterable.
      * @throws InvalidFieldException thrown when the field cannot be accessed or does not exist.
      */
@@ -188,6 +190,7 @@ public class ObjectisFilterable<T> {
      * Filters by a field's value being less than the one provided.
      * @param fieldName The field name.
      * @param value The value provided.
+     * @param <Y> The type of comparable object to use.
      * @return Returns a filterable.
      * @throws InvalidFieldException thrown when the field cannot be accessed or does not exist.
      */
@@ -225,6 +228,7 @@ public class ObjectisFilterable<T> {
      * Filters by a field's value being less than or equal to the one provided.
      * @param fieldName The field name.
      * @param value The value provided.
+     * @param <Y> The type of comparable object to use.
      * @return Returns a filterable.
      * @throws InvalidFieldException thrown when the field cannot be accessed or does not exist.
      */
