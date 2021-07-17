@@ -48,7 +48,7 @@
             <hr/>
 
             <div class="info-panel red white-text">
-                Objectis is still under construction and the current version (0.0.2) is Beta. Use this library at your own risk.
+                Objectis is still under construction and the current version (0.0.3) is Beta. Use this library at your own risk.
             </div>
 
             <h3>Contents</h3>
@@ -98,18 +98,18 @@
             <pre class="prettyprint">&lt;dependency&gt;
   &lt;groupId&gt;com.raylabz&lt;/groupId&gt;
   &lt;artifactId&gt;objectis&lt;/artifactId&gt;
-  &lt;version&gt;0.0.2&lt;/version&gt;
+  &lt;version&gt;0.0.3&lt;/version&gt;
 &lt;/dependency&gt;</pre>
 
             <p><b><u>Gradle:</u></b></p>
 
-            <pre class="prettyprint">implementation 'com.raylabz:objectis:0.0.2'</pre>
+            <pre class="prettyprint">implementation 'com.raylabz:objectis:0.0.3'</pre>
 
             <p>
                 Alternatively, you can download Objectis as a .jar file:
             </p>
 
-            <a class="btn btn-flat red darken-3 white-text" href="https://oss.sonatype.org/service/local/artifact/maven/redirect?r=releases&g=com.raylabz&a=objectis&v=0.0.2&e=jar">Download Jar</a>
+            <a class="btn btn-flat red darken-3 white-text" href="https://oss.sonatype.org/service/local/artifact/maven/redirect?r=releases&g=com.raylabz&a=objectis&v=0.0.3&e=jar">Download Jar</a>
 
             <h3 id="guide">Guide</h3>
 
@@ -201,6 +201,14 @@ Objectis.register(Person.class);</pre>
 
             <pre class="prettyprint java">
 Objectis.create(person);</pre>
+
+            <p>
+                Alternatively, you may also create an item using a custom ID, by providing your object and the ID. This will 
+                ignore the ID field of your object and save it using the ID you provide to the method.
+            </p>
+
+            <pre class="prettyprint java">
+Objectis.create(person, id);</pre>
 
             <div class="info-panel light-blue white-text">
                 Creating an item with the same ID as another existing item of the same class will replace the existing item.

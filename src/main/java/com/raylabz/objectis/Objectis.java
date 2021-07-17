@@ -118,6 +118,24 @@ public final class Objectis {
     }
 
     /**
+     * Stores an object in the cache using a custom ID.
+     * @param object The object to save.
+     * @param id The custom ID.
+     * @param <T> The type of object to store.
+     * @throws OperationFailedException when the operation fails.
+     */
+    public static <T> void create(final T object, String id) throws OperationFailedException {
+        try {
+            checkRegistration(object);
+            jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
+            jedis.sadd(PathMaker.getClassListPath(object.getClass()), id.getBytes(StandardCharsets.UTF_8));
+//            publisher.publish(object.getClass(), idField, OperationType.CREATE, object);
+        } catch (Exception e) {
+            throw new OperationFailedException(e);
+        }
+    }
+
+    /**
      * Updates an object in the cache.
      * @param object The object to update.
      * @param <T> The type of the object
