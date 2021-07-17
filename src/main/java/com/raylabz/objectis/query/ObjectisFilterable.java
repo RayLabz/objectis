@@ -434,7 +434,7 @@ public class ObjectisFilterable<T> {
      * @return Returns a filterable.
      */
     public ObjectisFilterable<T> limit(int limit) {
-        if (limit > 0) {
+        if (limit > 0 && temporaryItems.size() >= limit) {
             temporaryItems = new Vector<>(temporaryItems.subList(0, limit));
         }
         return this;
