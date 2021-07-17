@@ -127,7 +127,7 @@ public final class Objectis {
     public static <T> void create(final T object, String id) throws OperationFailedException {
         try {
             checkRegistration(object);
-            jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
+            jedis.set(PathMaker.getObjectPath(object.getClass(), id), Serializer.serializeObject(object));
             jedis.sadd(PathMaker.getClassListPath(object.getClass()), id.getBytes(StandardCharsets.UTF_8));
 //            publisher.publish(object.getClass(), idField, OperationType.CREATE, object);
         } catch (Exception e) {
