@@ -55,15 +55,22 @@ public class Person implements Serializable {
         friendNames.add(name);
     }
 
+//    @Override
+//    public String toString() {
+//        return "Person{" +
+//                "id='" + id + '\'' +
+//                ", age=" + age +
+//                ", name='" + name + '\'' +
+//                ", lastname='" + lastname + '\'' +
+//                ", friendNames=" + friendNames +
+//                '}';
+//    }
+
+
     @Override
     public String toString() {
         return "Person{" +
-                "id='" + id + '\'' +
-                ", age=" + age +
-                ", name='" + name + '\'' +
-                ", lastname='" + lastname + '\'' +
-                ", friendNames=" + friendNames +
+                "name='" + name + '\'' +
                 '}';
     }
-
 }

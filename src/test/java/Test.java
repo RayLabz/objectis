@@ -32,7 +32,8 @@ public class Test {
         final long t = System.currentTimeMillis();
         final Collection<Person> items = Objectis.filter(Person.class)
                 .whereEqualTo("name", "N2")
-                .fetch();
+                .fetch()
+                .getItems();
         System.out.println("Filter: " + (System.currentTimeMillis() - t) + "ms");
 
     }

@@ -1,10 +1,21 @@
 package com.raylabz.objectis.query;
 
 import com.raylabz.objectis.Objectis;
+import com.raylabz.objectis.Reflector;
+import com.raylabz.objectis.Serializer;
+import com.raylabz.objectis.concurrency.ArrayRange;
+import com.raylabz.objectis.concurrency.FilterCallable;
+import com.raylabz.objectis.concurrency.FilterCallableProcessor;
+import com.raylabz.objectis.concurrency.GetManyCallable;
 import com.raylabz.objectis.exception.InvalidFieldException;
+import com.raylabz.objectis.exception.OperationFailedException;
 
 import java.lang.reflect.Field;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * Provides functionality to filter items in the cache.
@@ -51,13 +62,13 @@ public class ObjectisFilterable<T> {
             throw new InvalidFieldException("The field '" + fieldName + "' does not exist in class '" + aClass.getSimpleName() + "'.");
         }
 
+        boolean preAccessible = field.isAccessible();
+        field.setAccessible(true);
+
         try {
             ArrayList<T> itemsToRemove = new ArrayList<>();
             for (T temporaryItem : temporaryItems) {
-                boolean preAccessible = field.isAccessible();
-                field.setAccessible(true);
                 final Object objectValue = field.get(temporaryItem);
-                field.setAccessible(preAccessible);
                 if (!objectValue.equals(value)) {
                     itemsToRemove.add(temporaryItem);
                 }
@@ -71,6 +82,7 @@ public class ObjectisFilterable<T> {
             throw new InvalidFieldException(e);
         }
 
+        field.setAccessible(preAccessible);
         return this;
     }
 
@@ -456,8 +468,16 @@ public class ObjectisFilterable<T> {
      * Fetches the result.
      * @return Returns a collection of objects.
      */
-    public ArrayList<T> fetch() {
-        return new ArrayList<>(temporaryItems);
+    public ObjectisQueryResult<T> fetch() {
+        try {
+            if (temporaryItems.size() > 0) {
+                final String lastElementID = Reflector.getIDField(temporaryItems.lastElement());
+                return new ObjectisQueryResult<>(temporaryItems, lastElementID);
+            }
+            return new ObjectisQueryResult<>(temporaryItems, null);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new OperationFailedException(e);
+        }
     }
 
     /**

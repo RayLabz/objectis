@@ -7,7 +7,7 @@ import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
-final class Reflector {
+public final class Reflector {
 
     /**
      * Checks if the given class contains the required fields, types and annotations.
@@ -110,7 +110,7 @@ final class Reflector {
      * @throws NoSuchFieldException Thrown when the field 'id' cannot be accessed.
      * @throws IllegalAccessException Thrown when the field 'id' cannot be accessed.
      */
-    static String getIDField(final Object object) throws NoSuchFieldException, IllegalAccessException {
+    public static String getIDField(final Object object) throws NoSuchFieldException, IllegalAccessException {
         Field idField;
         try {
             idField = object.getClass().getDeclaredField("id");
