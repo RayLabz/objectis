@@ -21,7 +21,7 @@ public class Test {
         Person aPerson = new Person("myID", 100, "N", "K");
         Objectis.create(aPerson);
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 1000; i++) {
             String uuid = UUID.randomUUID().toString();
             Person x = new Person(uuid, i + 20, "N" + i, "K" + i);
             x.addFriend("friend " + i);
@@ -29,49 +29,11 @@ public class Test {
             Objectis.create(x);
         }
 
-        final Collection<Person> list = Objectis.list(Person.class);
-        for (Person person : list) {
-            System.out.println(person);
-        }
-
-        new Scanner(System.in).nextLine();
-
-        Objectis.delete(aPerson);
-
-        new Scanner(System.in).nextLine();
-
         final long t = System.currentTimeMillis();
         final Collection<Person> items = Objectis.filter(Person.class)
-//                .whereLessThanOrEqualTo("age", 25)
-//                .whereEqualTo("name", "N3")
-//                .whereArrayContainsAny("friendNames", "friend " + 3, "friendz " + 5)
-                .orderBy("name", OrderDirection.DESCENDING)
-                .offset(3)
-                .limit(5)
+                .whereEqualTo("name", "N2")
                 .fetch();
-        System.out.println("Filter: " + (System.currentTimeMillis() - t));
-//        new Scanner(System.in).nextLine();
-
-        for (Person item : items) {
-            System.out.println(item);
-        }
-
-//        Objectis.getJedis().subscribe(new BinaryJedisPubSub() {
-//            @Override
-//            public void onMessage(byte[] channel, byte[] message) {
-//                String s = new String(message);
-//                System.out.println(s);
-//            }
-//        }, PathMaker.getClassListPath(Person.class));
-
-
-//        final boolean exists = Objectis.exists(Person.class, uuid);
-//        System.out.println(exists);
-//
-//        Objectis.delete(Person.class, uuid);
-//
-//        final boolean exists1 = Objectis.exists(Person.class, uuid);
-//        System.out.println(exists1);
+        System.out.println("Filter: " + (System.currentTimeMillis() - t) + "ms");
 
     }
 

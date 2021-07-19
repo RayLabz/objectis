@@ -64,6 +64,7 @@
                             <ul class="browser-default">
                                 <li><a href="#create">Create</a></li>
                                 <li><a href="#get">Get</a></li>
+                                <li><a href="#getMany">Get many</a></li>
                                 <li><a href="#exists">Exists</a></li>
                                 <li><a href="#update">Update</a></li>
                                 <li><a href="#list">List</a></li>
@@ -232,6 +233,24 @@ Person person = Objectis.get(Person.class, id);</pre>
 
             <!---------------------------------------------------------------------------------------------------->
 
+            <h5 id="getMany">Get many</h5>
+
+            <p>
+                You can retrieve multiple objects of the same type from Redis by using <span class="code">Objectis.getMany()</span> and providing the class of the object a list of IDs for the objects to retrieve.
+            </p>
+
+            <pre class="prettyprint java">
+List&lt;Person&gt; person = Objectis.getMany(Person.class, myIDs);</pre>
+
+            <p>
+                Or by using a Java varargs array:
+            </p>
+
+            <pre class="prettyprint java">
+List&lt;Person&gt; person = Objectis.getMany(Person.class, "id1", "id2", "id3");</pre>
+
+            <!---------------------------------------------------------------------------------------------------->
+
             <h5 id="exists">Exists</h5>
 
             <p>You can check if an object exists on Redis by providing its class and an ID:</p>
@@ -266,7 +285,7 @@ Objectis.update(person);</pre>
             </p>
 
             <pre class="prettyprint java">
-ArrayList&lt;Person&gt; peopleList = Objectis.list(Person.class);</pre>
+List&lt;Person&gt; peopleList = Objectis.list(Person.class);</pre>
 
             <!---------------------------------------------------------------------------------------------------->
 

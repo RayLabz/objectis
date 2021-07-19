@@ -1,5 +1,7 @@
 package com.raylabz.objectis;
 
+import com.raylabz.objectis.concurrency.ArrayRange;
+import com.raylabz.objectis.concurrency.GetManyCallable;
 import com.raylabz.objectis.exception.ClassRegistrationException;
 import com.raylabz.objectis.exception.OperationFailedException;
 import com.raylabz.objectis.query.ObjectisFilterable;
@@ -7,10 +9,15 @@ import redis.clients.jedis.Jedis;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public final class Objectis {
 
     private static Jedis jedis;
+    private static int NUM_OF_PROCESSORS;
 //    private static Publisher publisher;
 
     /**
@@ -27,6 +34,7 @@ public final class Objectis {
      */
     public static void init(String host, int port, int timeout, boolean ssl) {
         jedis = new Jedis(host, port, timeout, ssl);
+        NUM_OF_PROCESSORS = Runtime.getRuntime().availableProcessors();
 //        publisher = new Publisher(jedis);
 //        publisher.start();
     }
@@ -38,6 +46,7 @@ public final class Objectis {
      */
     public static void init(String host, int port) {
         jedis = new Jedis(host, port);
+        NUM_OF_PROCESSORS = Runtime.getRuntime().availableProcessors();
 //        publisher = new Publisher(jedis);
 //        publisher.start();
     }
@@ -47,6 +56,7 @@ public final class Objectis {
      */
     public static void init() {
         jedis = new Jedis();
+        NUM_OF_PROCESSORS = Runtime.getRuntime().availableProcessors();
 //        publisher = new Publisher(jedis);
 //        publisher.start();
     }
@@ -57,6 +67,7 @@ public final class Objectis {
      */
     public static void init(Jedis jedis) {
         Objectis.jedis = jedis;
+        NUM_OF_PROCESSORS = Runtime.getRuntime().availableProcessors();
 //        publisher = new Publisher(jedis);
 //        publisher.start();
     }
@@ -175,25 +186,120 @@ public final class Objectis {
     }
 
     /**
+     * Retrieve many objects, for a specific class from the cache using the IDs provided.
+     * @param aClass The class.
+     * @param ids A list of IDs.
+     * @param <T> The object type.
+     * @throws OperationFailedException when the operation cannot be completed.
+     * @return Returns a list of objects.
+     */
+    public static <T> List<T> getMany(Class<T> aClass, String... ids) throws OperationFailedException {
+        if (ids.length >= 50) {
+            return getManyThreaded_MT(aClass, ids);
+        }
+        try {
+            checkRegistration(aClass);
+            byte[][] arrayOfIDs = new byte[ids.length][];
+            for (int i = 0; i < ids.length; i++) {
+                arrayOfIDs[i] = PathMaker.getObjectPath(aClass, ids[i]);
+            }
+
+            final List<byte[]> itemsBytes = jedis.mget(arrayOfIDs);
+            ArrayList<T> items = new ArrayList<>();
+            for (byte[] itemByte : itemsBytes) {
+                final T item = Serializer.deserializeObject(itemByte, aClass);
+                items.add(item);
+            }
+            return items;
+        } catch (ClassRegistrationException e) {
+            throw new OperationFailedException(e);
+        }
+    }
+
+    private static <T> List<T> getManyThreaded_MT(Class<T> aClass, String... ids) throws OperationFailedException {
+        try {
+            checkRegistration(aClass);
+            byte[][] arrayOfIDs = new byte[ids.length][];
+            for (int i = 0; i < ids.length; i++) {
+                arrayOfIDs[i] = PathMaker.getObjectPath(aClass, ids[i]);
+            }
+
+            final List<byte[]> itemsBytes = jedis.mget(arrayOfIDs);
+
+            final int numOfProcessors = Objectis.NUM_OF_PROCESSORS;
+
+            final int itemsPerRange = itemsBytes.size() / numOfProcessors;
+            final int remainder = itemsBytes.size() % numOfProcessors;
+            int[] itemsInThreads = new int[numOfProcessors];
+            for (int i = 0; i < itemsInThreads.length; i++) {
+                itemsInThreads[i] = itemsPerRange;
+                if (i < remainder) {
+                    itemsInThreads[i]++;
+                }
+            }
+
+            ArrayList<ArrayRange> arrayRanges = new ArrayList<>();
+
+            int itemStart = 0;
+            for (int i = 0; i < numOfProcessors; i++) {
+                int itemEnd = itemStart + itemsInThreads[i];
+                arrayRanges.add(new ArrayRange(itemStart, itemEnd));
+                itemStart = itemEnd;
+            }
+
+            ExecutorService service = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+            List<GetManyCallable<T>> futureList = new ArrayList<>();
+            for (ArrayRange arrayRange : arrayRanges) {
+                GetManyCallable<T> callable = new GetManyCallable<>(aClass, itemsBytes, arrayRange);
+                futureList.add(callable);
+            }
+
+            final List<Future<List<T>>> futures = service.invokeAll(futureList);
+            service.shutdown();
+
+            ArrayList<T> items = new ArrayList<>();
+
+            for (Future<List<T>> future : futures) {
+                final List<T> sublist = future.get();
+                items.addAll(sublist);
+            }
+
+            return items;
+        } catch (ClassRegistrationException | InterruptedException | ExecutionException e) {
+            throw new OperationFailedException(e);
+        }
+    }
+
+    /**
+     * Retrieve many objects, for a specific class from the cache using the IDs provided.
+     * @param aClass The class.
+     * @param ids A list of IDs.
+     * @param <T> The object type.
+     * @throws OperationFailedException when the operation cannot be completed.
+     * @return Returns a list of objects.
+     */
+    public static <T> List<T> getMany(Class<T> aClass, List<String> ids) throws OperationFailedException {
+        return getMany(aClass, ids.toArray(new String[0]));
+    }
+
+    /**
      * Retrieves all objects stored for a particular class.
      * @param aClass The class of the objects to retrieve.
      * @param <T> The type of the objects.
-     * @return Returns a collection of objects.
+     * @return Returns a list of objects.
      * @throws OperationFailedException thrown when a problem occurs with the operation.
      */
-    public static <T> Collection<T> list(Class<T> aClass) throws OperationFailedException {
+    public static <T> List<T> list(Class<T> aClass) throws OperationFailedException {
         try {
             checkRegistration(aClass);
             final Set<byte[]> classObjectBytes = jedis.smembers(PathMaker.getClassListPath(aClass));
-            ArrayList<T> items = new ArrayList<>();
+
+            ArrayList<String> ids = new ArrayList<>();
             for (byte[] idBytes : classObjectBytes) {
-                String id = new String(idBytes);
-                final byte[] objectPathBytes = PathMaker.getObjectPath(aClass, id);
-                final byte[] objectBytes = jedis.get(objectPathBytes);
-                final T object = Serializer.deserializeObject(objectBytes, aClass);
-                items.add(object);
+                ids.add(new String(idBytes));
             }
-            return items;
+
+            return getMany(aClass, ids);
         } catch (Exception e) {
             throw new OperationFailedException(e);
         }
