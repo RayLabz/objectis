@@ -1,5 +1,6 @@
 import com.raylabz.objectis.Objectis;
 import com.raylabz.objectis.exception.ClassRegistrationException;
+import com.raylabz.objectis.query.ObjectisCollection;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +27,9 @@ public class FilterTest {
             x.addFriend("friend " + i);
             x.addFriend("friendz " + i);
             Objectis.create(x);
+            if (i % 2 == 0) {
+                Objectis.collection(Person.class, "evens").add(x);
+            }
         }
 
 
@@ -34,7 +38,8 @@ public class FilterTest {
         for (int i = 0; i < 10; i++) {
             final long t = System.currentTimeMillis();
 //            final List<Person> list = Objectis.getMany(Person.class, ids.toArray(new String[0]));
-            final List<Person> items = Objectis.filter(Person.class).whereEqualTo_Old("name", "N5").fetch().getItems();
+            final List<Person> items = Objectis.collection(Person.class, "evens").filter().whereEqualTo("name", "N4").fetch().getItems();
+
             long time = System.currentTimeMillis() - t;
             System.out.println(items);
             results.add(time);

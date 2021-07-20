@@ -31,7 +31,7 @@
             <h1 class="header center red-text text-darken-3">Objectis</h1>
             <br>
             <div class="row center">
-                <img class="responsive-img" src="images/objectis-logo.png" width="200"/>
+                <img class="responsive-img" src="images/objectis-logo.png" width="200" alt="logo"/>
             </div>
             <div class="row center">
                 <h4 class="header col s12 light">An object-oriented data access API for the Redis cache</h4>
@@ -48,7 +48,8 @@
             <hr/>
 
             <div class="info-panel red white-text">
-                Objectis is still under construction and the current version (0.0.5) is Beta. Use this library at your own risk.
+                The latest version of Objectis (0.1.0) is still in beta. Use this library at your own risk.
+                You can report issue <a class="yellow-text" target="_blank" href="https://forms.gle/KJAjMVERkVXV4vof6">here</a>.
             </div>
 
             <h3>Contents</h3>
@@ -63,23 +64,39 @@
                         <li><a href="#basicOperations">Operations</a>
                             <ul class="browser-default">
                                 <li><a href="#create">Create</a></li>
+                                <li><a href="#createAll">Create all</a></li>
                                 <li><a href="#get">Get</a></li>
                                 <li><a href="#getMany">Get many</a></li>
                                 <li><a href="#exists">Exists</a></li>
                                 <li><a href="#update">Update</a></li>
                                 <li><a href="#list">List</a></li>
                                 <li><a href="#delete">Delete</a></li>
+                                <li><a href="#deleteAll">Delete all</a></li>
                             </ul>
                         </li>
                         <li><a href="#filtering">Filtering</a>
                             <ul class="browser-default">
                                 <li><a href="#filtersReference">Filters reference</a></li>
+                                <li><a href="#filterConsiderations">Considerations on filtering</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="#collections">Collections</a>
+                            <ul class="browser-default">
+                                <li><a href="#collections-getCollection">Reference a collection</a></li>
+                                <li><a href="#collections-add">Add to collection</a></li>
+                                <li><a href="#collections-addAll">Add all to collection</a></li>
+                                <li><a href="#collections-list">List items of collection</a></li>
+                                <li><a href="#collections-delete">Delete from collection</a></li>
+                                <li><a href="#collections-deleteAll">Delete all from collection</a></li>
+                                <li><a href="#collections-contains">Contains</a></li>
+                                <li><a href="#collections-filter">Collection filters</a></li>
                             </ul>
                         </li>
                         <li><a href="#keys">Keys</a>
                             <ul class="browser-default">
                                 <li><a href="#objectKeys">Object keys</a></li>
                                 <li><a href="#classListKeys">Class list keys</a></li>
+                                <li><a href="#collectionKeys">Collection keys</a></li>
                             </ul>
                         </li>
                     </ul>
@@ -99,18 +116,18 @@
             <pre class="prettyprint">&lt;dependency&gt;
   &lt;groupId&gt;com.raylabz&lt;/groupId&gt;
   &lt;artifactId&gt;objectis&lt;/artifactId&gt;
-  &lt;version&gt;0.0.5&lt;/version&gt;
+  &lt;version&gt;0.1.0&lt;/version&gt;
 &lt;/dependency&gt;</pre>
 
             <p><b><u>Gradle:</u></b></p>
 
-            <pre class="prettyprint">implementation 'com.raylabz:objectis:0.0.5'</pre>
+            <pre class="prettyprint">implementation 'com.raylabz:objectis:0.1.0'</pre>
 
             <p>
                 Alternatively, you can download Objectis as a .jar file:
             </p>
 
-            <a class="btn btn-flat red darken-3 white-text" href="https://oss.sonatype.org/service/local/artifact/maven/redirect?r=releases&g=com.raylabz&a=objectis&v=0.0.5&e=jar">Download Jar</a>
+            <a class="btn btn-flat red darken-3 white-text" href="https://oss.sonatype.org/service/local/artifact/maven/redirect?r=releases&g=com.raylabz&a=objectis&v=0.1.0&e=jar">Download Jar</a>
 
             <h3 id="guide">Guide</h3>
 
@@ -217,6 +234,18 @@ Objectis.create(person, id);</pre>
 
             <!---------------------------------------------------------------------------------------------------->
 
+            <h5 id="createAll">Create all</h5>
+
+            <p>
+                You can also store multiple objects in a single call, using the <span class="code">Objectis.createAll()</span>
+                method, providing a list of items to create:
+            </p>
+
+            <pre class="prettyprint java">
+Objectis.createAll(person, listOfItems);</pre>
+
+            <!---------------------------------------------------------------------------------------------------->
+
             <h5 id="get">Get</h5>
 
             <p>
@@ -305,6 +334,25 @@ Objectis.delete(person);</pre>
             <pre class="prettyprint java">
 Objectis.delete(Person.class, id);</pre>
 
+            <!---------------------------------------------------------------------------------------------------->
+
+            <h5 id="deleteAll">Delete all</h5>
+
+            <p>
+                To delete multiple items from Redis, you can use <span class="code">Objectis.deleteAll()</span>,
+                and provide a list of items to delete:
+            </p>
+
+            <pre class="prettyprint java">
+Objectis.deleteAll(listOfItems);</pre>
+
+            <p>
+                Alternatively, you can also provide the class of the items being deleted and list of IDs for items to delete:
+            </p>
+
+            <pre class="prettyprint java">
+Objectis.deleteAll(Person.class, ids);</pre>
+
             <hr/>
 
             <!---------------------------------------------------------------------------------------------------->
@@ -335,17 +383,37 @@ final ObjectisFilterable&lt;Person&gt; filter = Objectis.filter(Person.class)
         .limit(5);</pre>
 
             <p>
-                You can get the results of a filter by using the <span class="code">fetch()</span> method.
-                This returns a collection containing the items:
+                You can get the result of a filter by using the <span class="code">fetch()</span> method.
+                This returns an <span class="code">ObjectisQueryResult</span>:
             </p>
 
-            <pre class="prettyprint java">
-final Collection&lt;Person&gt; items = Objectis.filter(Person.class)
+            <pre class="prettyprint">
+ObjectisQueryResult&lt;Person&gt; result = Objectis.filter(Person.class)
         .whereEqualTo("firstName", "John")
         .whereGreaterThan("age", 10)
         .orderBy("age")
         .limit(5)
         .fetch();</pre>
+
+            <p>
+                Using this result, you can get the items using <span class="code">getItems()</span>:
+            </p>
+
+            <pre class="prettyprint">
+Collection&lt;Person&gt; items = result.getItems();</pre>
+
+            <p>You can also retrieve the ID of the last document/item retrieved:</p>
+
+            <pre class="prettyprint">
+String lastDocumentID = result.getLastDocumentID();</pre>
+
+            <p>In most cases, it may be easier to directly fetch and get the items in the same statement:</p>
+
+            <pre class="prettyprint java">
+Collection&lt;Person&gt; items = Objectis.filter(Person.class)
+        .whereEqualTo("name", "N2")
+        .fetch()
+        .getItems();</pre>
 
             <!---------------------------------------------------------------------------------------------------->
 
@@ -434,6 +502,180 @@ final Collection&lt;Person&gt; items = Objectis.filter(Person.class)
                 This is applied by default on basic data types and their boxed counterparts.
             </div>
 
+            <!---------------------------------------------------------------------------------------------------->
+
+            <h5 ID="filterConsiderations">Considerations on filtering</h5>
+
+            <p>
+                Filtering data on Redis is a computationally expensive process, especially when large numbers
+                of items need to be processed and filtered. Unfortunately, due to the nature of caching in general,
+                it is not possible to run queries as efficiently as in other data storage formats such as SQL
+                databases or even NoSQL data stores. Even though Objectis is optimized to handle large numbers of items
+                through multithreading where appropriate, there are hard limits to the scalability of this approach.
+            </p>
+
+            <p>
+                For these reasons, we encourage the use of <b><a href="#collections">Collections</a></b>.
+                Collections are a feature of Objectis which allows us to create custom collections of items
+                that exist within the cache. A collection can include <i>only a subset</i> of the items of a particular
+                class and therefore make it easier and more efficient to handle scenarios where operations need to be
+                performed on sets of data. Where necessary, collections can be further filtered to obtain fine-grained
+                results.
+            </p>
+
+            <hr/>
+
+            <!---------------------------------------------------------------------------------------------------->
+
+            <h4 id="collections">Collections</h4>
+
+            <p>
+                Objectis collections are custom collections of objects you can create, which can contain items of a particular
+                class. Each collection has a unique name that identifies the subset of items that it stores.
+                The goal of collections is to group items of a particular class together to make it easier to find
+                similar items and to reduce processing times.
+            </p>
+
+            <p>
+                An example would be the need to store a special collection of <span class="code">Person</span> objects
+                whose age is above 18 - this collection could be named adults. Storing items in this collection
+                allows us to quickly refer to all Persons who are adults and run operations only on a subset of items of
+                this type, instead of all objects of type <span class="code">Person</span>.
+                Therefore, collections of items can be operated on and filtered much more efficiently compared to normal lists.
+            </p>
+
+            <h5 id="collections-getCollection">Reference a collection</h5>
+
+            <p>
+                To reference a collection by class and name, you can use <span class="code">Objectis.collection()</span>,
+                providing the type of items this collection stores and the name of the collection. For new collections,
+                you do not need to explicitly create the collection and you can start adding items directly.
+                Calling <span class="code">Objectis.collection()</span> will return an <span class="code">ObjectisCollection</span>
+                object, which you can later use to run operations on the data inside the collection:
+            </p>
+
+            <pre class="prettyprint">
+ObjectisCollection&lt;Person&gt; adults = Objectis.collection(Person.class, "adults");</pre>
+
+            <div class="info-panel light-blue white-text">
+                The name of each collection must be unique.
+            </div>
+
+            <h5 id="collections-add">Add to collection</h5>
+
+            <p>
+                You can add an item to a collection using the <span class="code">add()</span> method:
+            </p>
+
+            <pre class="prettyprint">
+adults.add(person);</pre>
+
+            <p>
+                The potential of collections is based on <i>conditionally</i> adding items to the collection based
+                on each scenario. In our example, we would add a person to the adults collection, only if their
+                age was >=18:
+            </p>
+
+            <pre class="prettyprint">
+if (person.getAge() >= 18) {
+   adults.add(person);
+}</pre>
+
+            <h5 id="collections-addAll">Add all to collection</h5>
+
+            <p>
+                You can also batch add a list of items to the collection using the <span class="code">addAll()</span> method,
+                providing a list of items:
+            </p>
+
+            <pre class="prettyprint">
+adults.addAll(listOfPersons);</pre>
+
+            <div class="info-panel light-blue white-text">
+                Adding items to a collection only adds a reference to the original item. Therefore, changes made
+                to any item within a collection are going to be visible globally.
+            </div>
+
+            <h5 id="collections-list">List items of collection</h5>
+
+            <p>
+                To retrieve a list of items inside the collection, you can use <span class="code">list()</span>:
+            </p>
+
+            <pre class="prettyprint">
+List&lt;Person&gt; adults = Objectis.collection(Person.class, "adults").list();</pre>
+
+            <h5 id="collections-delete">Delete from collection</h5>
+
+            <p>
+                To delete an item from the collection you can use the <span class="code">delete()</span> method, providing
+                either an object or the item's ID as a String:
+            </p>
+
+            <pre class="prettyprint">
+adults.delete(person);</pre>
+
+            <pre class="prettyprint">
+adults.delete(personID);</pre>
+
+            <h5 id="collections-deleteAll">Delete all</h5>
+
+            <p>
+                You can also delete multiple items using <span class="code">deleteAll()</span>. In this method, you
+                can provide either a list of items to delete or an array of IDs as Strings:
+            </p>
+
+            <pre class="prettyprint">
+adults.deleteAll(listOfPersons);</pre>
+
+            <pre class="prettyprint">
+adults.deleteAll("id1", "id2", "id3");</pre>
+
+            <div class="info-panel light-blue white-text">
+                Deleting an item from a collection only removes the item from the collection. To delete the item itself,
+                use <span class="code">Objectis.delete()</span>.
+            </div>
+
+            <h5 id="collections-contains">Contains</h5>
+
+            <p>
+                You can check if a collection contains an item using either an object or the item's ID as a string, by
+                calling <span class="code">contains()</span>:
+            </p>
+
+            <pre class="prettyprint">
+if (adults.contains(person)) {
+   //TODO - Collection contains the item
+}
+else {
+   //TODO - Collection does NOT contain the item.
+}</pre>
+
+            <p>or</p>
+
+            <pre class="prettyprint">
+if (adults.contains(itemID)) {
+   //TODO - Collection contains the item
+}
+else {
+   //TODO - Collection does NOT contain the item.
+}</pre>
+
+            <h5 id="collections-filter">Collection filters</h5>
+
+            <p>
+                You may also want to filter items within the collection. Filtering in collections works in the same way
+                as mentioned in the Filtering section. To filter collections, use the <span class="code">filter()</span>
+                method and the subsequent filtering methods provided by the filterable object returned:
+            </p>
+
+            <pre class="prettyprint">
+List&lt;Person&gt; items = adults.filter()
+        .whereEqualTo("firstName", "John")
+        .limit(5)
+        .fetch()
+        .getItems();</pre>
+
             <hr/>
 
             <!---------------------------------------------------------------------------------------------------->
@@ -462,7 +704,7 @@ Person/myID</pre>
 GET Person/MyID</pre>
 
             <p>
-                If your class exists within a package, the key will be formed based on the fully evaluated name of the class
+                If your class exists within a package, <b>the key will be formed based on the fully evaluated name of the class</b>
                 (including the package). For example, if your Person class exists inside the package com.mypackage.model,
                 Objectis will form the following key:
             </p>
@@ -478,8 +720,8 @@ com.mypackage.model.Person/myID</pre>
             <h5 id="classListKeys">Class list keys</h5>
 
             <p>
-                To enable objects to be stored as collections of data, Objectis uses unordered sets containing their IDs.
-                The keys to these sets are created based on the class name. For example, the fully evaluted class name can be
+                To track the objects of each class, Objectis uses unordered sets containing their IDs.
+                The keys to these sets are created based on the class name. For example, the fully evaluated class name can be
                 used to obtain a set of all saved instances of that class:
             </p>
 
@@ -492,6 +734,21 @@ com.mypackage.model.Person</pre>
 
             <pre class="prettyprint">
 SMEMBERS com.mypackage.model.Person</pre>
+
+            <h5 id="collectionKeys">Collection keys</h5>
+
+            <p>
+                For collections, Objectis uses unordered sets containing item IDs to track the objects in each collection.
+                The key of each collection is formed using the class name and the collection name (e.g. "evens"), separated by a colon:
+            </p>
+
+            <pre class="prettyprint">
+com.mypackage.model.Person:evens</pre>
+
+            <p>Using the key in the CLI to obtain the IDs of the members in the collection:</p>
+
+            <pre class="prettyprint">
+SMEMBERS com.mypackage.model.Person:evens</pre>
 
             <!--------------------------------------------------------------------------------------------------------->
 

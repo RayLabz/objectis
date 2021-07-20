@@ -26,6 +26,16 @@ public class PathMaker {
     }
 
     /**
+     * Constructs a collection path based on a class and a collection name: #CLASS_NAME#:#COLLECTION_NAME#
+     * @param aClass The class.
+     * @param collectionName The collection name.
+     * @return Returns a byte[]
+     */
+    public static byte[] getCollectionPath(Class<?> aClass, String collectionName) {
+        return Serializer.serializeKey(aClass.getName() + ":" + collectionName);
+    }
+
+    /**
      * Constructs a class list path as a string and returns its bytes: #CLASS_NAME#
      * @param aClass The class.
      * @return Returns a byte[].

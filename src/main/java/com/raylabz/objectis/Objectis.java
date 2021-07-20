@@ -4,6 +4,7 @@ import com.raylabz.objectis.concurrency.ArrayRange;
 import com.raylabz.objectis.concurrency.GetManyCallable;
 import com.raylabz.objectis.exception.ClassRegistrationException;
 import com.raylabz.objectis.exception.OperationFailedException;
+import com.raylabz.objectis.query.ObjectisCollection;
 import com.raylabz.objectis.query.ObjectisFilterable;
 import redis.clients.jedis.Jedis;
 
@@ -129,6 +130,27 @@ public final class Objectis {
     }
 
     /**
+     * Stores a list of objects in the cache.
+     * @param objects A list of objects to store.
+     * @param <T> The type of objects.
+     * @throws OperationFailedException when the operation fails.
+     */
+    public static <T> void createAll(List<T> objects) throws OperationFailedException {
+        if (objects.size() > 0) {
+            try {
+                checkRegistration(objects.get(0).getClass());
+                for (T object : objects) {
+                    jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
+                    final String idField = Reflector.getIDField(object);
+                    jedis.sadd(PathMaker.getClassListPath(object.getClass()), idField.getBytes(StandardCharsets.UTF_8));
+                }
+            } catch (Exception e) {
+                throw new OperationFailedException(e);
+            }
+        }
+    }
+
+    /**
      * Stores an object in the cache using a custom ID.
      * @param object The object to save.
      * @param id The custom ID.
@@ -216,12 +238,89 @@ public final class Objectis {
         }
     }
 
+    public static <T> List<T> getManyWithBytes(Class<T> aClass, List<byte[]> ids) throws OperationFailedException {
+        if (ids.size() >= 50) {
+            return getManyThreaded_MT(aClass, ids);
+        }
+        try {
+            checkRegistration(aClass);
+            byte[][] arrayOfIDs = new byte[ids.size()][];
+            for (int i = 0; i < ids.size(); i++) {
+                arrayOfIDs[i] = PathMaker.getObjectPath(aClass, new String(ids.get(i)));
+            }
+
+            final List<byte[]> itemsBytes = jedis.mget(arrayOfIDs);
+            ArrayList<T> items = new ArrayList<>();
+            for (byte[] itemByte : itemsBytes) {
+                final T item = Serializer.deserializeObject(itemByte, aClass);
+                items.add(item);
+            }
+            return items;
+        } catch (ClassRegistrationException e) {
+            throw new OperationFailedException(e);
+        }
+    }
+
     private static <T> List<T> getManyThreaded_MT(Class<T> aClass, String... ids) throws OperationFailedException {
         try {
             checkRegistration(aClass);
             byte[][] arrayOfIDs = new byte[ids.length][];
             for (int i = 0; i < ids.length; i++) {
                 arrayOfIDs[i] = PathMaker.getObjectPath(aClass, ids[i]);
+            }
+
+            final List<byte[]> itemsBytes = jedis.mget(arrayOfIDs);
+
+            final int numOfProcessors = Objectis.NUM_OF_PROCESSORS;
+
+            final int itemsPerRange = itemsBytes.size() / numOfProcessors;
+            final int remainder = itemsBytes.size() % numOfProcessors;
+            int[] itemsInThreads = new int[numOfProcessors];
+            for (int i = 0; i < itemsInThreads.length; i++) {
+                itemsInThreads[i] = itemsPerRange;
+                if (i < remainder) {
+                    itemsInThreads[i]++;
+                }
+            }
+
+            ArrayList<ArrayRange> arrayRanges = new ArrayList<>();
+
+            int itemStart = 0;
+            for (int i = 0; i < numOfProcessors; i++) {
+                int itemEnd = itemStart + itemsInThreads[i];
+                arrayRanges.add(new ArrayRange(itemStart, itemEnd));
+                itemStart = itemEnd;
+            }
+
+            ExecutorService service = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+            List<GetManyCallable<T>> futureList = new ArrayList<>();
+            for (ArrayRange arrayRange : arrayRanges) {
+                GetManyCallable<T> callable = new GetManyCallable<>(aClass, itemsBytes, arrayRange);
+                futureList.add(callable);
+            }
+
+            final List<Future<List<T>>> futures = service.invokeAll(futureList);
+            service.shutdown();
+
+            ArrayList<T> items = new ArrayList<>();
+
+            for (Future<List<T>> future : futures) {
+                final List<T> sublist = future.get();
+                items.addAll(sublist);
+            }
+
+            return items;
+        } catch (ClassRegistrationException | InterruptedException | ExecutionException e) {
+            throw new OperationFailedException(e);
+        }
+    }
+
+    static <T> List<T> getManyThreaded_MT(Class<T> aClass, List<byte[]> ids) throws OperationFailedException {
+        try {
+            checkRegistration(aClass);
+            byte[][] arrayOfIDs = new byte[ids.size()][];
+            for (int i = 0; i < ids.size(); i++) {
+                arrayOfIDs[i] = PathMaker.getObjectPath(aClass, new String(ids.get(i)));
             }
 
             final List<byte[]> itemsBytes = jedis.mget(arrayOfIDs);
@@ -361,6 +460,60 @@ public final class Objectis {
     }
 
     /**
+     * Deletes a list of objects from the cache based on the given IDs.
+     * @param aClass The object class.
+     * @param ids A list of object IDs.
+     * @param <T> The type of the object.
+     * @throws OperationFailedException when the operation fails.
+     */
+    public static <T> void deleteAll(Class<T> aClass, String... ids) {
+        try {
+            checkRegistration(aClass);
+            for (String id : ids) {
+                final byte[] objectPathBytes = PathMaker.getObjectPath(aClass, id);
+                jedis.del(objectPathBytes);
+                jedis.srem(PathMaker.getClassListPath(aClass), Serializer.serializeKey(id));
+//            publisher.publish(aClass, id, OperationType.DELETE, null);
+            }
+        } catch (Exception e) {
+            throw new OperationFailedException(e);
+        }
+    }
+
+    /**
+     * Deletes a list of objects from the cache based on the given IDs.
+     * @param aClass The object class.
+     * @param ids A list of object IDs.
+     * @param <T> The type of the object.
+     * @throws OperationFailedException when the operation fails.
+     */
+    public static <T> void deleteAll(Class<T> aClass, List<String> ids) {
+        deleteAll(aClass, ids.toArray(new String[0]));
+    }
+
+    /**
+     * Deletes a list of objects from the cache.
+     * @param objects The list of objects to delete.
+     * @param <T> The type of the objects.
+     * @throws OperationFailedException when the operation fails.
+     */
+    public static <T> void deleteAll(List<T> objects) throws OperationFailedException {
+        if (objects.size() > 0) {
+            try {
+                checkRegistration(objects.get(0).getClass());
+                for (T object : objects) {
+                    final String id = Reflector.getIDField(object);
+                    final byte[] objectPathBytes = PathMaker.getObjectPath(object.getClass(), id);
+                    jedis.del(objectPathBytes);
+                    jedis.srem(PathMaker.getClassListPath(object.getClass()), Serializer.serializeKey(id));
+                }
+            } catch (Exception e) {
+                throw new OperationFailedException(e);
+            }
+        }
+    }
+
+    /**
      * Enables filtering of a particular type of object.
      * @param aClass The type of object.
      * @param <T> The type of object.
@@ -379,6 +532,17 @@ public final class Objectis {
      */
     public static <T> ObjectisFilterable<T> filter(Class<T> aClass, Vector<T> items) {
         return new ObjectisFilterable<>(aClass, items);
+    }
+
+    /**
+     * Retrieves a reference to a collection.
+     * @param aClass The class of the collection.
+     * @param collectionName The collection's name
+     * @param <T> The type.
+     * @return Returns an ObjectisCollection.
+     */
+    public static <T> ObjectisCollection<T> collection(Class<T> aClass, String collectionName) {
+        return new ObjectisCollection<>(aClass, collectionName);
     }
 
     /**
