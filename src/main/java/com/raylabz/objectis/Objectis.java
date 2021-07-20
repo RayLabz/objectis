@@ -216,6 +216,9 @@ public final class Objectis {
      * @return Returns a list of objects.
      */
     public static <T> List<T> getMany(Class<T> aClass, String... ids) throws OperationFailedException {
+        if (ids.length == 0) {
+            return new ArrayList<>();
+        }
         if (ids.length >= 50) {
             return getManyThreaded_MT(aClass, ids);
         }
@@ -239,6 +242,9 @@ public final class Objectis {
     }
 
     public static <T> List<T> getManyWithBytes(Class<T> aClass, List<byte[]> ids) throws OperationFailedException {
+        if (ids.size() == 0) {
+            return new ArrayList<>();
+        }
         if (ids.size() >= 50) {
             return getManyThreaded_MT(aClass, ids);
         }
