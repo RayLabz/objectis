@@ -10,15 +10,13 @@ import redis.clients.jedis.Jedis;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 
 public final class Objectis {
 
     private static Jedis jedis;
     private static int NUM_OF_PROCESSORS;
+    private static boolean useMultipleThreads = true;
 //    private static Publisher publisher;
 
     /**
@@ -46,7 +44,7 @@ public final class Objectis {
      * @param port The port
      */
     public static void init(String host, int port) {
-        jedis = new Jedis(host, port);
+        jedis = new Jedis(host, port, 30000, false);
         NUM_OF_PROCESSORS = Runtime.getRuntime().availableProcessors();
 //        publisher = new Publisher(jedis);
 //        publisher.start();
@@ -56,7 +54,7 @@ public final class Objectis {
      * Initializes Objectis.
      */
     public static void init() {
-        jedis = new Jedis();
+        jedis = new Jedis("localhost", 6379, 30000, false);
         NUM_OF_PROCESSORS = Runtime.getRuntime().availableProcessors();
 //        publisher = new Publisher(jedis);
 //        publisher.start();
@@ -71,6 +69,14 @@ public final class Objectis {
         NUM_OF_PROCESSORS = Runtime.getRuntime().availableProcessors();
 //        publisher = new Publisher(jedis);
 //        publisher.start();
+    }
+
+    /**
+     * Sets the Objectis to use multiple threads or not.
+     * @param useMultipleThreads Set to true to enable use of multithreading, false to use a single thread.
+     */
+    public static void useMutithreading(boolean useMultipleThreads) {
+        Objectis.useMultipleThreads = useMultipleThreads;
     }
 
     /**
@@ -107,7 +113,7 @@ public final class Objectis {
     /**
      * Flushes the cache.
      */
-    public static void flush() {
+    public static synchronized void flush() {
         jedis.flushDB();
     }
 
@@ -117,16 +123,16 @@ public final class Objectis {
      * @param <T> The type of object to store.
      * @throws OperationFailedException when the operation fails.
      */
-    public static <T> void create(final T object) throws OperationFailedException {
-        try {
-            checkRegistration(object);
-            jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
-            final String idField = Reflector.getIDField(object);
-            jedis.sadd(PathMaker.getClassListPath(object.getClass()), idField.getBytes(StandardCharsets.UTF_8));
+    public static synchronized <T> void create(final T object) throws OperationFailedException {
+            try {
+                checkRegistration(object);
+                jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
+                final String idField = Reflector.getIDField(object);
+                jedis.sadd(PathMaker.getClassListPath(object.getClass()), idField.getBytes(StandardCharsets.UTF_8));
 //            publisher.publish(object.getClass(), idField, OperationType.CREATE, object);
-        } catch (Exception e) {
-            throw new OperationFailedException(e);
-        }
+            } catch (Exception e) {
+                throw new OperationFailedException(e);
+            }
     }
 
     /**
@@ -135,7 +141,7 @@ public final class Objectis {
      * @param <T> The type of objects.
      * @throws OperationFailedException when the operation fails.
      */
-    public static <T> void createAll(List<T> objects) throws OperationFailedException {
+    public static synchronized <T> void createAll(List<T> objects) throws OperationFailedException {
         if (objects.size() > 0) {
             try {
                 checkRegistration(objects.get(0).getClass());
@@ -157,7 +163,7 @@ public final class Objectis {
      * @param <T> The type of object to store.
      * @throws OperationFailedException when the operation fails.
      */
-    public static <T> void create(final T object, String id) throws OperationFailedException {
+    public static synchronized <T> void create(final T object, String id) throws OperationFailedException {
         try {
             checkRegistration(object);
             jedis.set(PathMaker.getObjectPath(object.getClass(), id), Serializer.serializeObject(object));
@@ -174,7 +180,7 @@ public final class Objectis {
      * @param <T> The type of the object
      * @throws OperationFailedException thrown when the operation fails.
      */
-    public static <T> void update(final T object) throws OperationFailedException {
+    public static synchronized <T> void update(final T object) throws OperationFailedException {
         try {
             checkRegistration(object);
             jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
@@ -194,7 +200,7 @@ public final class Objectis {
      * @return Returns an object.
      * @throws OperationFailedException thrown when a problem occurs with the operation.
      */
-    public static <T> T get(Class<T> aClass, String id) throws OperationFailedException {
+    public static synchronized <T> T get(Class<T> aClass, String id) throws OperationFailedException {
         try {
             checkRegistration(aClass);
             final byte[] bytes = jedis.get(PathMaker.getObjectPath(aClass, id));
@@ -215,11 +221,11 @@ public final class Objectis {
      * @throws OperationFailedException when the operation cannot be completed.
      * @return Returns a list of objects.
      */
-    public static <T> List<T> getMany(Class<T> aClass, String... ids) throws OperationFailedException {
+    public static synchronized <T> List<T> getMany(Class<T> aClass, String... ids) throws OperationFailedException {
         if (ids.length == 0) {
             return new ArrayList<>();
         }
-        if (ids.length >= 50) {
+        if (ids.length >= 50 && useMultipleThreads) {
             return getManyThreaded_MT(aClass, ids);
         }
         try {
@@ -241,11 +247,11 @@ public final class Objectis {
         }
     }
 
-    public static <T> List<T> getManyWithBytes(Class<T> aClass, List<byte[]> ids) throws OperationFailedException {
+    public static synchronized <T> List<T> getManyWithBytes(Class<T> aClass, List<byte[]> ids) throws OperationFailedException {
         if (ids.size() == 0) {
             return new ArrayList<>();
         }
-        if (ids.size() >= 50) {
+        if (ids.size() >= 50 && useMultipleThreads) {
             return getManyThreaded_MT(aClass, ids);
         }
         try {
@@ -267,7 +273,7 @@ public final class Objectis {
         }
     }
 
-    private static <T> List<T> getManyThreaded_MT(Class<T> aClass, String... ids) throws OperationFailedException {
+    private static synchronized <T> List<T> getManyThreaded_MT(Class<T> aClass, String... ids) throws OperationFailedException {
         try {
             checkRegistration(aClass);
             byte[][] arrayOfIDs = new byte[ids.length][];
@@ -321,7 +327,7 @@ public final class Objectis {
         }
     }
 
-    static <T> List<T> getManyThreaded_MT(Class<T> aClass, List<byte[]> ids) throws OperationFailedException {
+    static synchronized <T> List<T> getManyThreaded_MT(Class<T> aClass, List<byte[]> ids) throws OperationFailedException {
         try {
             checkRegistration(aClass);
             byte[][] arrayOfIDs = new byte[ids.size()][];
@@ -383,7 +389,7 @@ public final class Objectis {
      * @throws OperationFailedException when the operation cannot be completed.
      * @return Returns a list of objects.
      */
-    public static <T> List<T> getMany(Class<T> aClass, List<String> ids) throws OperationFailedException {
+    public static synchronized <T> List<T> getMany(Class<T> aClass, List<String> ids) throws OperationFailedException {
         return getMany(aClass, ids.toArray(new String[0]));
     }
 
@@ -394,7 +400,7 @@ public final class Objectis {
      * @return Returns a list of objects.
      * @throws OperationFailedException thrown when a problem occurs with the operation.
      */
-    public static <T> List<T> list(Class<T> aClass) throws OperationFailedException {
+    public static synchronized <T> List<T> list(Class<T> aClass) throws OperationFailedException {
         try {
             checkRegistration(aClass);
             final Set<byte[]> classObjectBytes = jedis.smembers(PathMaker.getClassListPath(aClass));
@@ -418,7 +424,7 @@ public final class Objectis {
      * @throws OperationFailedException when the operation fails.
      * @return Returns true if the object exists, false otherwise.
      */
-    public static <T> boolean exists(Class<T> aClass, String id) {
+    public static synchronized <T> boolean exists(Class<T> aClass, String id) {
         try {
             checkRegistration(aClass);
             final byte[] objectPathBytes = PathMaker.getObjectPath(aClass, id);
@@ -435,7 +441,7 @@ public final class Objectis {
      * @param <T> The type of the object.
      * @throws OperationFailedException when the operation fails.
      */
-    public static <T> void delete(Class<T> aClass, String id) {
+    public static synchronized <T> void delete(Class<T> aClass, String id) {
         try {
             checkRegistration(aClass);
             final byte[] objectPathBytes = PathMaker.getObjectPath(aClass, id);
@@ -453,7 +459,7 @@ public final class Objectis {
      * @param <T> The type of the object.
      * @throws OperationFailedException when the operation fails.
      */
-    public static <T> void delete(T object) throws OperationFailedException {
+    public static synchronized <T> void delete(T object) throws OperationFailedException {
         try {
             checkRegistration(object);
             final String id = Reflector.getIDField(object);
@@ -472,7 +478,7 @@ public final class Objectis {
      * @param <T> The type of the object.
      * @throws OperationFailedException when the operation fails.
      */
-    public static <T> void deleteAll(Class<T> aClass, String... ids) {
+    public static synchronized <T> void deleteAll(Class<T> aClass, String... ids) {
         try {
             checkRegistration(aClass);
             for (String id : ids) {
@@ -493,7 +499,7 @@ public final class Objectis {
      * @param <T> The type of the object.
      * @throws OperationFailedException when the operation fails.
      */
-    public static <T> void deleteAll(Class<T> aClass, List<String> ids) {
+    public static synchronized <T> void deleteAll(Class<T> aClass, List<String> ids) {
         deleteAll(aClass, ids.toArray(new String[0]));
     }
 
@@ -503,7 +509,7 @@ public final class Objectis {
      * @param <T> The type of the objects.
      * @throws OperationFailedException when the operation fails.
      */
-    public static <T> void deleteAll(List<T> objects) throws OperationFailedException {
+    public static synchronized <T> void deleteAll(List<T> objects) throws OperationFailedException {
         if (objects.size() > 0) {
             try {
                 checkRegistration(objects.get(0).getClass());
@@ -525,7 +531,7 @@ public final class Objectis {
      * @param <T> The type of object.
      * @return Returns an ObjectisFilterable.
      */
-    public static <T> ObjectisFilterable<T> filter(Class<T> aClass) {
+    public static synchronized <T> ObjectisFilterable<T> filter(Class<T> aClass) {
         return new ObjectisFilterable<>(aClass);
     }
 
@@ -536,7 +542,7 @@ public final class Objectis {
      * @param <T> The type of object.
      * @return Returns an ObjectisFilterable.
      */
-    public static <T> ObjectisFilterable<T> filter(Class<T> aClass, Vector<T> items) {
+    public static synchronized <T> ObjectisFilterable<T> filter(Class<T> aClass, Vector<T> items) {
         return new ObjectisFilterable<>(aClass, items);
     }
 
@@ -547,7 +553,7 @@ public final class Objectis {
      * @param <T> The type.
      * @return Returns an ObjectisCollection.
      */
-    public static <T> ObjectisCollection<T> collection(Class<T> aClass, String collectionName) {
+    public static synchronized <T> ObjectisCollection<T> collection(Class<T> aClass, String collectionName) {
         return new ObjectisCollection<>(aClass, collectionName);
     }
 
@@ -555,7 +561,7 @@ public final class Objectis {
      * Retrieve the Jedis object.
      * @return Returns a Jedis object.
      */
-    public static Jedis getJedis() {
+    public static synchronized Jedis getJedis() {
         return jedis;
     }
 
