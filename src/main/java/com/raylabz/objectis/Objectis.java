@@ -17,6 +17,7 @@ public final class Objectis {
     private static Jedis jedis;
     private static int NUM_OF_PROCESSORS;
     private static boolean useMultipleThreads = true;
+    public static final Object lock = new Object();
 //    private static Publisher publisher;
 
     /**
@@ -123,7 +124,8 @@ public final class Objectis {
      * @param <T> The type of object to store.
      * @throws OperationFailedException when the operation fails.
      */
-    public static synchronized <T> void create(final T object) throws OperationFailedException {
+    public static <T> void create(final T object) throws OperationFailedException {
+        synchronized (lock) {
             try {
                 checkRegistration(object);
                 jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
@@ -133,6 +135,7 @@ public final class Objectis {
             } catch (Exception e) {
                 throw new OperationFailedException(e);
             }
+        }
     }
 
     /**
@@ -141,17 +144,19 @@ public final class Objectis {
      * @param <T> The type of objects.
      * @throws OperationFailedException when the operation fails.
      */
-    public static synchronized <T> void createAll(List<T> objects) throws OperationFailedException {
-        if (objects.size() > 0) {
-            try {
-                checkRegistration(objects.get(0).getClass());
-                for (T object : objects) {
-                    jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
-                    final String idField = Reflector.getIDField(object);
-                    jedis.sadd(PathMaker.getClassListPath(object.getClass()), idField.getBytes(StandardCharsets.UTF_8));
+    public static <T> void createAll(List<T> objects) throws OperationFailedException {
+        synchronized (lock) {
+            if (objects.size() > 0) {
+                try {
+                    checkRegistration(objects.get(0).getClass());
+                    for (T object : objects) {
+                        jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
+                        final String idField = Reflector.getIDField(object);
+                        jedis.sadd(PathMaker.getClassListPath(object.getClass()), idField.getBytes(StandardCharsets.UTF_8));
+                    }
+                } catch (Exception e) {
+                    throw new OperationFailedException(e);
                 }
-            } catch (Exception e) {
-                throw new OperationFailedException(e);
             }
         }
     }
@@ -163,14 +168,16 @@ public final class Objectis {
      * @param <T> The type of object to store.
      * @throws OperationFailedException when the operation fails.
      */
-    public static synchronized <T> void create(final T object, String id) throws OperationFailedException {
-        try {
-            checkRegistration(object);
-            jedis.set(PathMaker.getObjectPath(object.getClass(), id), Serializer.serializeObject(object));
-            jedis.sadd(PathMaker.getClassListPath(object.getClass()), id.getBytes(StandardCharsets.UTF_8));
+    public static <T> void create(final T object, String id) throws OperationFailedException {
+        synchronized (lock) {
+            try {
+                checkRegistration(object);
+                jedis.set(PathMaker.getObjectPath(object.getClass(), id), Serializer.serializeObject(object));
+                jedis.sadd(PathMaker.getClassListPath(object.getClass()), id.getBytes(StandardCharsets.UTF_8));
 //            publisher.publish(object.getClass(), idField, OperationType.CREATE, object);
-        } catch (Exception e) {
-            throw new OperationFailedException(e);
+            } catch (Exception e) {
+                throw new OperationFailedException(e);
+            }
         }
     }
 
@@ -180,15 +187,17 @@ public final class Objectis {
      * @param <T> The type of the object
      * @throws OperationFailedException thrown when the operation fails.
      */
-    public static synchronized <T> void update(final T object) throws OperationFailedException {
-        try {
-            checkRegistration(object);
-            jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
-            final String idField = Reflector.getIDField(object);
-            jedis.sadd(PathMaker.getClassListPath(object.getClass()), idField.getBytes(StandardCharsets.UTF_8));
+    public static <T> void update(final T object) throws OperationFailedException {
+        synchronized (lock) {
+            try {
+                checkRegistration(object);
+                jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
+                final String idField = Reflector.getIDField(object);
+                jedis.sadd(PathMaker.getClassListPath(object.getClass()), idField.getBytes(StandardCharsets.UTF_8));
 //            publisher.publish(object.getClass(), idField, OperationType.UPDATE, object);
-        } catch (Exception e) {
-            throw new OperationFailedException(e);
+            } catch (Exception e) {
+                throw new OperationFailedException(e);
+            }
         }
     }
 
@@ -200,16 +209,18 @@ public final class Objectis {
      * @return Returns an object.
      * @throws OperationFailedException thrown when a problem occurs with the operation.
      */
-    public static synchronized <T> T get(Class<T> aClass, String id) throws OperationFailedException {
-        try {
-            checkRegistration(aClass);
-            final byte[] bytes = jedis.get(PathMaker.getObjectPath(aClass, id));
-            if (bytes == null) {
-                return null;
+    public static <T> T get(Class<T> aClass, String id) throws OperationFailedException {
+        synchronized (lock) {
+            try {
+                checkRegistration(aClass);
+                final byte[] bytes = jedis.get(PathMaker.getObjectPath(aClass, id));
+                if (bytes == null) {
+                    return null;
+                }
+                return Serializer.deserializeObject(bytes, aClass);
+            } catch (Exception e) {
+                throw new OperationFailedException(e);
             }
-            return Serializer.deserializeObject(bytes, aClass);
-        } catch (Exception e) {
-            throw new OperationFailedException(e);
         }
     }
 
@@ -221,163 +232,171 @@ public final class Objectis {
      * @throws OperationFailedException when the operation cannot be completed.
      * @return Returns a list of objects.
      */
-    public static synchronized <T> List<T> getMany(Class<T> aClass, String... ids) throws OperationFailedException {
-        if (ids.length == 0) {
-            return new ArrayList<>();
-        }
-        if (ids.length >= 50 && useMultipleThreads) {
-            return getManyThreaded_MT(aClass, ids);
-        }
-        try {
-            checkRegistration(aClass);
-            byte[][] arrayOfIDs = new byte[ids.length][];
-            for (int i = 0; i < ids.length; i++) {
-                arrayOfIDs[i] = PathMaker.getObjectPath(aClass, ids[i]);
+    public static <T> List<T> getMany(Class<T> aClass, String... ids) throws OperationFailedException {
+        synchronized (lock) {
+            if (ids.length == 0) {
+                return new ArrayList<>();
             }
-
-            final List<byte[]> itemsBytes = jedis.mget(arrayOfIDs);
-            ArrayList<T> items = new ArrayList<>();
-            for (byte[] itemByte : itemsBytes) {
-                final T item = Serializer.deserializeObject(itemByte, aClass);
-                items.add(item);
+            if (ids.length >= 50 && useMultipleThreads) {
+                return getManyThreaded_MT(aClass, ids);
             }
-            return items;
-        } catch (ClassRegistrationException e) {
-            throw new OperationFailedException(e);
-        }
-    }
-
-    public static synchronized <T> List<T> getManyWithBytes(Class<T> aClass, List<byte[]> ids) throws OperationFailedException {
-        if (ids.size() == 0) {
-            return new ArrayList<>();
-        }
-        if (ids.size() >= 50 && useMultipleThreads) {
-            return getManyThreaded_MT(aClass, ids);
-        }
-        try {
-            checkRegistration(aClass);
-            byte[][] arrayOfIDs = new byte[ids.size()][];
-            for (int i = 0; i < ids.size(); i++) {
-                arrayOfIDs[i] = PathMaker.getObjectPath(aClass, new String(ids.get(i)));
-            }
-
-            final List<byte[]> itemsBytes = jedis.mget(arrayOfIDs);
-            ArrayList<T> items = new ArrayList<>();
-            for (byte[] itemByte : itemsBytes) {
-                final T item = Serializer.deserializeObject(itemByte, aClass);
-                items.add(item);
-            }
-            return items;
-        } catch (ClassRegistrationException e) {
-            throw new OperationFailedException(e);
-        }
-    }
-
-    private static synchronized <T> List<T> getManyThreaded_MT(Class<T> aClass, String... ids) throws OperationFailedException {
-        try {
-            checkRegistration(aClass);
-            byte[][] arrayOfIDs = new byte[ids.length][];
-            for (int i = 0; i < ids.length; i++) {
-                arrayOfIDs[i] = PathMaker.getObjectPath(aClass, ids[i]);
-            }
-
-            final List<byte[]> itemsBytes = jedis.mget(arrayOfIDs);
-
-            final int numOfProcessors = Objectis.NUM_OF_PROCESSORS;
-
-            final int itemsPerRange = itemsBytes.size() / numOfProcessors;
-            final int remainder = itemsBytes.size() % numOfProcessors;
-            int[] itemsInThreads = new int[numOfProcessors];
-            for (int i = 0; i < itemsInThreads.length; i++) {
-                itemsInThreads[i] = itemsPerRange;
-                if (i < remainder) {
-                    itemsInThreads[i]++;
+            try {
+                checkRegistration(aClass);
+                byte[][] arrayOfIDs = new byte[ids.length][];
+                for (int i = 0; i < ids.length; i++) {
+                    arrayOfIDs[i] = PathMaker.getObjectPath(aClass, ids[i]);
                 }
+
+                final List<byte[]> itemsBytes = jedis.mget(arrayOfIDs);
+                ArrayList<T> items = new ArrayList<>();
+                for (byte[] itemByte : itemsBytes) {
+                    final T item = Serializer.deserializeObject(itemByte, aClass);
+                    items.add(item);
+                }
+                return items;
+            } catch (ClassRegistrationException e) {
+                throw new OperationFailedException(e);
             }
-
-            ArrayList<ArrayRange> arrayRanges = new ArrayList<>();
-
-            int itemStart = 0;
-            for (int i = 0; i < numOfProcessors; i++) {
-                int itemEnd = itemStart + itemsInThreads[i];
-                arrayRanges.add(new ArrayRange(itemStart, itemEnd));
-                itemStart = itemEnd;
-            }
-
-            ExecutorService service = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-            List<GetManyCallable<T>> futureList = new ArrayList<>();
-            for (ArrayRange arrayRange : arrayRanges) {
-                GetManyCallable<T> callable = new GetManyCallable<>(aClass, itemsBytes, arrayRange);
-                futureList.add(callable);
-            }
-
-            final List<Future<List<T>>> futures = service.invokeAll(futureList);
-            service.shutdown();
-
-            ArrayList<T> items = new ArrayList<>();
-
-            for (Future<List<T>> future : futures) {
-                final List<T> sublist = future.get();
-                items.addAll(sublist);
-            }
-
-            return items;
-        } catch (ClassRegistrationException | InterruptedException | ExecutionException e) {
-            throw new OperationFailedException(e);
         }
     }
 
-    static synchronized <T> List<T> getManyThreaded_MT(Class<T> aClass, List<byte[]> ids) throws OperationFailedException {
-        try {
-            checkRegistration(aClass);
-            byte[][] arrayOfIDs = new byte[ids.size()][];
-            for (int i = 0; i < ids.size(); i++) {
-                arrayOfIDs[i] = PathMaker.getObjectPath(aClass, new String(ids.get(i)));
+    public static <T> List<T> getManyWithBytes(Class<T> aClass, List<byte[]> ids) throws OperationFailedException {
+        synchronized (lock) {
+            if (ids.size() == 0) {
+                return new ArrayList<>();
             }
-
-            final List<byte[]> itemsBytes = jedis.mget(arrayOfIDs);
-
-            final int numOfProcessors = Objectis.NUM_OF_PROCESSORS;
-
-            final int itemsPerRange = itemsBytes.size() / numOfProcessors;
-            final int remainder = itemsBytes.size() % numOfProcessors;
-            int[] itemsInThreads = new int[numOfProcessors];
-            for (int i = 0; i < itemsInThreads.length; i++) {
-                itemsInThreads[i] = itemsPerRange;
-                if (i < remainder) {
-                    itemsInThreads[i]++;
+            if (ids.size() >= 50 && useMultipleThreads) {
+                return getManyThreaded_MT(aClass, ids);
+            }
+            try {
+                checkRegistration(aClass);
+                byte[][] arrayOfIDs = new byte[ids.size()][];
+                for (int i = 0; i < ids.size(); i++) {
+                    arrayOfIDs[i] = PathMaker.getObjectPath(aClass, new String(ids.get(i)));
                 }
+
+                final List<byte[]> itemsBytes = jedis.mget(arrayOfIDs);
+                ArrayList<T> items = new ArrayList<>();
+                for (byte[] itemByte : itemsBytes) {
+                    final T item = Serializer.deserializeObject(itemByte, aClass);
+                    items.add(item);
+                }
+                return items;
+            } catch (ClassRegistrationException e) {
+                throw new OperationFailedException(e);
             }
+        }
+    }
 
-            ArrayList<ArrayRange> arrayRanges = new ArrayList<>();
+    private static <T> List<T> getManyThreaded_MT(Class<T> aClass, String... ids) throws OperationFailedException {
+        synchronized (lock) {
+            try {
+                checkRegistration(aClass);
+                byte[][] arrayOfIDs = new byte[ids.length][];
+                for (int i = 0; i < ids.length; i++) {
+                    arrayOfIDs[i] = PathMaker.getObjectPath(aClass, ids[i]);
+                }
 
-            int itemStart = 0;
-            for (int i = 0; i < numOfProcessors; i++) {
-                int itemEnd = itemStart + itemsInThreads[i];
-                arrayRanges.add(new ArrayRange(itemStart, itemEnd));
-                itemStart = itemEnd;
+                final List<byte[]> itemsBytes = jedis.mget(arrayOfIDs);
+
+                final int numOfProcessors = Objectis.NUM_OF_PROCESSORS;
+
+                final int itemsPerRange = itemsBytes.size() / numOfProcessors;
+                final int remainder = itemsBytes.size() % numOfProcessors;
+                int[] itemsInThreads = new int[numOfProcessors];
+                for (int i = 0; i < itemsInThreads.length; i++) {
+                    itemsInThreads[i] = itemsPerRange;
+                    if (i < remainder) {
+                        itemsInThreads[i]++;
+                    }
+                }
+
+                ArrayList<ArrayRange> arrayRanges = new ArrayList<>();
+
+                int itemStart = 0;
+                for (int i = 0; i < numOfProcessors; i++) {
+                    int itemEnd = itemStart + itemsInThreads[i];
+                    arrayRanges.add(new ArrayRange(itemStart, itemEnd));
+                    itemStart = itemEnd;
+                }
+
+                ExecutorService service = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+                List<GetManyCallable<T>> futureList = new ArrayList<>();
+                for (ArrayRange arrayRange : arrayRanges) {
+                    GetManyCallable<T> callable = new GetManyCallable<>(aClass, itemsBytes, arrayRange);
+                    futureList.add(callable);
+                }
+
+                final List<Future<List<T>>> futures = service.invokeAll(futureList);
+                service.shutdown();
+
+                ArrayList<T> items = new ArrayList<>();
+
+                for (Future<List<T>> future : futures) {
+                    final List<T> sublist = future.get();
+                    items.addAll(sublist);
+                }
+
+                return items;
+            } catch (ClassRegistrationException | InterruptedException | ExecutionException e) {
+                throw new OperationFailedException(e);
             }
+        }
+    }
 
-            ExecutorService service = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-            List<GetManyCallable<T>> futureList = new ArrayList<>();
-            for (ArrayRange arrayRange : arrayRanges) {
-                GetManyCallable<T> callable = new GetManyCallable<>(aClass, itemsBytes, arrayRange);
-                futureList.add(callable);
+    static <T> List<T> getManyThreaded_MT(Class<T> aClass, List<byte[]> ids) throws OperationFailedException {
+        synchronized (lock) {
+            try {
+                checkRegistration(aClass);
+                byte[][] arrayOfIDs = new byte[ids.size()][];
+                for (int i = 0; i < ids.size(); i++) {
+                    arrayOfIDs[i] = PathMaker.getObjectPath(aClass, new String(ids.get(i)));
+                }
+
+                final List<byte[]> itemsBytes = jedis.mget(arrayOfIDs);
+
+                final int numOfProcessors = Objectis.NUM_OF_PROCESSORS;
+
+                final int itemsPerRange = itemsBytes.size() / numOfProcessors;
+                final int remainder = itemsBytes.size() % numOfProcessors;
+                int[] itemsInThreads = new int[numOfProcessors];
+                for (int i = 0; i < itemsInThreads.length; i++) {
+                    itemsInThreads[i] = itemsPerRange;
+                    if (i < remainder) {
+                        itemsInThreads[i]++;
+                    }
+                }
+
+                ArrayList<ArrayRange> arrayRanges = new ArrayList<>();
+
+                int itemStart = 0;
+                for (int i = 0; i < numOfProcessors; i++) {
+                    int itemEnd = itemStart + itemsInThreads[i];
+                    arrayRanges.add(new ArrayRange(itemStart, itemEnd));
+                    itemStart = itemEnd;
+                }
+
+                ExecutorService service = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+                List<GetManyCallable<T>> futureList = new ArrayList<>();
+                for (ArrayRange arrayRange : arrayRanges) {
+                    GetManyCallable<T> callable = new GetManyCallable<>(aClass, itemsBytes, arrayRange);
+                    futureList.add(callable);
+                }
+
+                final List<Future<List<T>>> futures = service.invokeAll(futureList);
+                service.shutdown();
+
+                ArrayList<T> items = new ArrayList<>();
+
+                for (Future<List<T>> future : futures) {
+                    final List<T> sublist = future.get();
+                    items.addAll(sublist);
+                }
+
+                return items;
+            } catch (ClassRegistrationException | InterruptedException | ExecutionException e) {
+                throw new OperationFailedException(e);
             }
-
-            final List<Future<List<T>>> futures = service.invokeAll(futureList);
-            service.shutdown();
-
-            ArrayList<T> items = new ArrayList<>();
-
-            for (Future<List<T>> future : futures) {
-                final List<T> sublist = future.get();
-                items.addAll(sublist);
-            }
-
-            return items;
-        } catch (ClassRegistrationException | InterruptedException | ExecutionException e) {
-            throw new OperationFailedException(e);
         }
     }
 
@@ -389,7 +408,7 @@ public final class Objectis {
      * @throws OperationFailedException when the operation cannot be completed.
      * @return Returns a list of objects.
      */
-    public static synchronized <T> List<T> getMany(Class<T> aClass, List<String> ids) throws OperationFailedException {
+    public static <T> List<T> getMany(Class<T> aClass, List<String> ids) throws OperationFailedException {
         return getMany(aClass, ids.toArray(new String[0]));
     }
 
@@ -400,19 +419,21 @@ public final class Objectis {
      * @return Returns a list of objects.
      * @throws OperationFailedException thrown when a problem occurs with the operation.
      */
-    public static synchronized <T> List<T> list(Class<T> aClass) throws OperationFailedException {
-        try {
-            checkRegistration(aClass);
-            final Set<byte[]> classObjectBytes = jedis.smembers(PathMaker.getClassListPath(aClass));
+    public static <T> List<T> list(Class<T> aClass) throws OperationFailedException {
+        synchronized (lock) {
+            try {
+                checkRegistration(aClass);
+                final Set<byte[]> classObjectBytes = jedis.smembers(PathMaker.getClassListPath(aClass));
 
-            ArrayList<String> ids = new ArrayList<>();
-            for (byte[] idBytes : classObjectBytes) {
-                ids.add(new String(idBytes));
+                ArrayList<String> ids = new ArrayList<>();
+                for (byte[] idBytes : classObjectBytes) {
+                    ids.add(new String(idBytes));
+                }
+
+                return getMany(aClass, ids);
+            } catch (Exception e) {
+                throw new OperationFailedException(e);
             }
-
-            return getMany(aClass, ids);
-        } catch (Exception e) {
-            throw new OperationFailedException(e);
         }
     }
 
@@ -424,13 +445,15 @@ public final class Objectis {
      * @throws OperationFailedException when the operation fails.
      * @return Returns true if the object exists, false otherwise.
      */
-    public static synchronized <T> boolean exists(Class<T> aClass, String id) {
-        try {
-            checkRegistration(aClass);
-            final byte[] objectPathBytes = PathMaker.getObjectPath(aClass, id);
-            return jedis.get(objectPathBytes) != null;
-        } catch (Exception e) {
-            throw new OperationFailedException(e);
+    public static <T> boolean exists(Class<T> aClass, String id) {
+        synchronized (lock) {
+            try {
+                checkRegistration(aClass);
+                final byte[] objectPathBytes = PathMaker.getObjectPath(aClass, id);
+                return jedis.get(objectPathBytes) != null;
+            } catch (Exception e) {
+                throw new OperationFailedException(e);
+            }
         }
     }
 
@@ -441,15 +464,17 @@ public final class Objectis {
      * @param <T> The type of the object.
      * @throws OperationFailedException when the operation fails.
      */
-    public static synchronized <T> void delete(Class<T> aClass, String id) {
-        try {
-            checkRegistration(aClass);
-            final byte[] objectPathBytes = PathMaker.getObjectPath(aClass, id);
-            jedis.del(objectPathBytes);
-            jedis.srem(PathMaker.getClassListPath(aClass), Serializer.serializeKey(id));
+    public static <T> void delete(Class<T> aClass, String id) {
+        synchronized (lock) {
+            try {
+                checkRegistration(aClass);
+                final byte[] objectPathBytes = PathMaker.getObjectPath(aClass, id);
+                jedis.del(objectPathBytes);
+                jedis.srem(PathMaker.getClassListPath(aClass), Serializer.serializeKey(id));
 //            publisher.publish(aClass, id, OperationType.DELETE, null);
-        } catch (Exception e) {
-            throw new OperationFailedException(e);
+            } catch (Exception e) {
+                throw new OperationFailedException(e);
+            }
         }
     }
 
@@ -459,36 +484,17 @@ public final class Objectis {
      * @param <T> The type of the object.
      * @throws OperationFailedException when the operation fails.
      */
-    public static synchronized <T> void delete(T object) throws OperationFailedException {
-        try {
-            checkRegistration(object);
-            final String id = Reflector.getIDField(object);
-            final byte[] objectPathBytes = PathMaker.getObjectPath(object.getClass(), id);
-            jedis.del(objectPathBytes);
-            jedis.srem(PathMaker.getClassListPath(object.getClass()), Serializer.serializeKey(id));
-        } catch (Exception e) {
-            throw new OperationFailedException(e);
-        }
-    }
-
-    /**
-     * Deletes a list of objects from the cache based on the given IDs.
-     * @param aClass The object class.
-     * @param ids A list of object IDs.
-     * @param <T> The type of the object.
-     * @throws OperationFailedException when the operation fails.
-     */
-    public static synchronized <T> void deleteAll(Class<T> aClass, String... ids) {
-        try {
-            checkRegistration(aClass);
-            for (String id : ids) {
-                final byte[] objectPathBytes = PathMaker.getObjectPath(aClass, id);
+    public static <T> void delete(T object) throws OperationFailedException {
+        synchronized (lock) {
+            try {
+                checkRegistration(object);
+                final String id = Reflector.getIDField(object);
+                final byte[] objectPathBytes = PathMaker.getObjectPath(object.getClass(), id);
                 jedis.del(objectPathBytes);
-                jedis.srem(PathMaker.getClassListPath(aClass), Serializer.serializeKey(id));
-//            publisher.publish(aClass, id, OperationType.DELETE, null);
+                jedis.srem(PathMaker.getClassListPath(object.getClass()), Serializer.serializeKey(id));
+            } catch (Exception e) {
+                throw new OperationFailedException(e);
             }
-        } catch (Exception e) {
-            throw new OperationFailedException(e);
         }
     }
 
@@ -499,7 +505,30 @@ public final class Objectis {
      * @param <T> The type of the object.
      * @throws OperationFailedException when the operation fails.
      */
-    public static synchronized <T> void deleteAll(Class<T> aClass, List<String> ids) {
+    public static <T> void deleteAll(Class<T> aClass, String... ids) {
+        synchronized (lock) {
+            try {
+                checkRegistration(aClass);
+                for (String id : ids) {
+                    final byte[] objectPathBytes = PathMaker.getObjectPath(aClass, id);
+                    jedis.del(objectPathBytes);
+                    jedis.srem(PathMaker.getClassListPath(aClass), Serializer.serializeKey(id));
+//            publisher.publish(aClass, id, OperationType.DELETE, null);
+                }
+            } catch (Exception e) {
+                throw new OperationFailedException(e);
+            }
+        }
+    }
+
+    /**
+     * Deletes a list of objects from the cache based on the given IDs.
+     * @param aClass The object class.
+     * @param ids A list of object IDs.
+     * @param <T> The type of the object.
+     * @throws OperationFailedException when the operation fails.
+     */
+    public static <T> void deleteAll(Class<T> aClass, List<String> ids) {
         deleteAll(aClass, ids.toArray(new String[0]));
     }
 
@@ -509,7 +538,8 @@ public final class Objectis {
      * @param <T> The type of the objects.
      * @throws OperationFailedException when the operation fails.
      */
-    public static synchronized <T> void deleteAll(List<T> objects) throws OperationFailedException {
+    public static <T> void deleteAll(List<T> objects) throws OperationFailedException {
+        synchronized (lock) {
             if (objects.size() > 0) {
                 try {
                     checkRegistration(objects.get(0).getClass());
@@ -523,6 +553,7 @@ public final class Objectis {
                     throw new OperationFailedException(e);
                 }
             }
+        }
     }
 
     /**
@@ -531,7 +562,7 @@ public final class Objectis {
      * @param <T> The type of object.
      * @return Returns an ObjectisFilterable.
      */
-    public static synchronized <T> ObjectisFilterable<T> filter(Class<T> aClass) {
+    public static <T> ObjectisFilterable<T> filter(Class<T> aClass) {
         return new ObjectisFilterable<>(aClass);
     }
 

@@ -20,9 +20,12 @@ public class SimpleTest {
                 public void run() {
                     for (int i = 0; i < 10; i++) {
                         Person p = new Person(UUID.randomUUID().toString(), 10 + i, UUID.randomUUID().toString().substring(3), UUID.randomUUID().toString().substring(3));
+                        Person p2 = new Person(UUID.randomUUID().toString(), 10 + i, UUID.randomUUID().toString().substring(3), UUID.randomUUID().toString().substring(3));
                         Objectis.collection(Person.class, "myCollection").add(p);
                         Objectis.create(p);
-//                        Objectis.get(Person.class, "X");
+                        Objectis.get(Person.class, "X");
+                        Objectis.create(p2);
+                        Objectis.list(Person.class);
                         System.out.println("Thread " + name + " created person " + i);
                         try {
                             Thread.sleep(1000);

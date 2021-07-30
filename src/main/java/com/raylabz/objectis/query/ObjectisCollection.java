@@ -14,11 +14,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.Vector;
-import java.util.concurrent.locks.Lock;
 
 public class ObjectisCollection<T> {
-
-    private static final Object lock = new Object();
+    
     private final Class<T> aClass;
     private final String name;
 
@@ -54,7 +52,7 @@ public class ObjectisCollection<T> {
      * @throws OperationFailedException Thrown when the operation has failed.
      */
     public final void add(T item) throws OperationFailedException {
-        synchronized (lock) {
+        synchronized (Objectis.lock) {
             try {
                 Reflector.checkClass(item.getClass());
                 Objectis.getJedis().sadd(getReference(), Serializer.serializeKey(Reflector.getIDField(item)));
@@ -69,7 +67,7 @@ public class ObjectisCollection<T> {
      * @param items A list of items to add.
      */
     public final void addAll(List<T> items) {
-        synchronized (lock) {
+        synchronized (Objectis.lock) {
             try {
                 Reflector.checkClass(aClass);
                 for (T item : items) {
@@ -87,7 +85,7 @@ public class ObjectisCollection<T> {
      * @throws OperationFailedException thrown when the operation has failed.
      */
     public final List<T> list() throws OperationFailedException {
-        synchronized (lock) {
+        synchronized (Objectis.lock) {
             try {
                 Reflector.checkClass(aClass);
                 final Set<byte[]> itemIDsAsBytesSet = Objectis.getJedis().smembers(getReference());
@@ -104,7 +102,7 @@ public class ObjectisCollection<T> {
      * @param item The item to delete.
      */
     public final void delete(T item) {
-        synchronized (lock) {
+        synchronized (Objectis.lock) {
             try {
                 Reflector.checkClass(aClass);
                 final String id = Reflector.getIDField(item);
@@ -120,7 +118,7 @@ public class ObjectisCollection<T> {
      * @param itemID The ID of the item to delete.
      */
     public final  void delete(String itemID) {
-        synchronized (lock) {
+        synchronized (Objectis.lock) {
             try {
                 Reflector.checkClass(aClass);
                 Objectis.getJedis().srem(getReference(), Serializer.serializeKey(itemID));
@@ -135,7 +133,7 @@ public class ObjectisCollection<T> {
      * @param items The list of items to delete.
      */
     public final void deleteAll(List<T> items) {
-        synchronized (lock) {
+        synchronized (Objectis.lock) {
             try {
                 Reflector.checkClass(aClass);
                 for (T item : items) {
@@ -153,7 +151,7 @@ public class ObjectisCollection<T> {
      * @param ids The IDs of the items to delete.
      */
     public final void deleteAll(String... ids) {
-        synchronized (lock) {
+        synchronized (Objectis.lock) {
             try {
                 Reflector.checkClass(aClass);
                 for (String id : ids) {
@@ -171,7 +169,7 @@ public class ObjectisCollection<T> {
      * @return Returns true if the item is in the collection, false otherwise.
      */
     public final boolean contains(T item) {
-        synchronized (lock) {
+        synchronized (Objectis.lock) {
             try {
                 Reflector.checkClass(aClass);
                 final String id = Reflector.getIDField(item);
@@ -188,7 +186,7 @@ public class ObjectisCollection<T> {
      * @return Returns true if the item is in the collection, false otherwise.
      */
     public final boolean contains(String itemID) {
-        synchronized (lock) {
+        synchronized (Objectis.lock) {
             try {
                 Reflector.checkClass(aClass);
                 return Objectis.getJedis().sismember(getReference(), Serializer.serializeKey(itemID));
@@ -203,7 +201,7 @@ public class ObjectisCollection<T> {
      * @return Returns an ObjectisFilterable.
      */
     public final ObjectisFilterable<T> filter() {
-        synchronized (lock) {
+        synchronized (Objectis.lock) {
             return new ObjectisFilterable<>(aClass, new Vector<>(list()));
         }
     }
