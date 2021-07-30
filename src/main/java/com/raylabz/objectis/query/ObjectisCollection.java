@@ -14,9 +14,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.Vector;
+import java.util.concurrent.locks.Lock;
 
 public class ObjectisCollection<T> {
 
+    private static final Object lock = new Object();
     private final Class<T> aClass;
     private final String name;
 
@@ -52,11 +54,13 @@ public class ObjectisCollection<T> {
      * @throws OperationFailedException Thrown when the operation has failed.
      */
     public final void add(T item) throws OperationFailedException {
-        try {
-            Reflector.checkClass(item.getClass());
-            Objectis.getJedis().sadd(getReference(), Serializer.serializeKey(Reflector.getIDField(item)));
-        } catch (NoSuchFieldException | IllegalAccessException | ClassRegistrationException e) {
-            throw new OperationFailedException(e);
+        synchronized (lock) {
+            try {
+                Reflector.checkClass(item.getClass());
+                Objectis.getJedis().sadd(getReference(), Serializer.serializeKey(Reflector.getIDField(item)));
+            } catch (NoSuchFieldException | IllegalAccessException | ClassRegistrationException e) {
+                throw new OperationFailedException(e);
+            }
         }
     }
 
@@ -65,13 +69,15 @@ public class ObjectisCollection<T> {
      * @param items A list of items to add.
      */
     public final void addAll(List<T> items) {
-        try {
-            Reflector.checkClass(aClass);
-            for (T item : items) {
-                Objectis.getJedis().sadd(getReference(), Serializer.serializeKey(Reflector.getIDField(item)));
+        synchronized (lock) {
+            try {
+                Reflector.checkClass(aClass);
+                for (T item : items) {
+                    Objectis.getJedis().sadd(getReference(), Serializer.serializeKey(Reflector.getIDField(item)));
+                }
+            } catch (NoSuchFieldException | IllegalAccessException | ClassRegistrationException e) {
+                throw new OperationFailedException(e);
             }
-        } catch (NoSuchFieldException | IllegalAccessException | ClassRegistrationException e) {
-            throw new OperationFailedException(e);
         }
     }
 
@@ -81,13 +87,15 @@ public class ObjectisCollection<T> {
      * @throws OperationFailedException thrown when the operation has failed.
      */
     public final List<T> list() throws OperationFailedException {
-        try {
-            Reflector.checkClass(aClass);
-            final Set<byte[]> itemIDsAsBytesSet = Objectis.getJedis().smembers(getReference());
-            final List<byte[]> itemIDsAsBytes = new ArrayList<>(itemIDsAsBytesSet);
-            return Objectis.getManyWithBytes(aClass, itemIDsAsBytes);
-        } catch (ClassRegistrationException e) {
-            throw new OperationFailedException(e);
+        synchronized (lock) {
+            try {
+                Reflector.checkClass(aClass);
+                final Set<byte[]> itemIDsAsBytesSet = Objectis.getJedis().smembers(getReference());
+                final List<byte[]> itemIDsAsBytes = new ArrayList<>(itemIDsAsBytesSet);
+                return Objectis.getManyWithBytes(aClass, itemIDsAsBytes);
+            } catch (ClassRegistrationException e) {
+                throw new OperationFailedException(e);
+            }
         }
     }
 
@@ -96,12 +104,14 @@ public class ObjectisCollection<T> {
      * @param item The item to delete.
      */
     public final void delete(T item) {
-        try {
-            Reflector.checkClass(aClass);
-            final String id = Reflector.getIDField(item);
-            Objectis.getJedis().srem(getReference(), Serializer.serializeKey(id));
-        } catch (ClassRegistrationException | NoSuchFieldException | IllegalAccessException e) {
-            throw new OperationFailedException(e);
+        synchronized (lock) {
+            try {
+                Reflector.checkClass(aClass);
+                final String id = Reflector.getIDField(item);
+                Objectis.getJedis().srem(getReference(), Serializer.serializeKey(id));
+            } catch (ClassRegistrationException | NoSuchFieldException | IllegalAccessException e) {
+                throw new OperationFailedException(e);
+            }
         }
     }
 
@@ -109,12 +119,14 @@ public class ObjectisCollection<T> {
      * Deletes an item from the collection.
      * @param itemID The ID of the item to delete.
      */
-    public final void delete(String itemID) {
-        try {
-            Reflector.checkClass(aClass);
-            Objectis.getJedis().srem(getReference(), Serializer.serializeKey(itemID));
-        } catch (ClassRegistrationException e) {
-            throw new OperationFailedException(e);
+    public final  void delete(String itemID) {
+        synchronized (lock) {
+            try {
+                Reflector.checkClass(aClass);
+                Objectis.getJedis().srem(getReference(), Serializer.serializeKey(itemID));
+            } catch (ClassRegistrationException e) {
+                throw new OperationFailedException(e);
+            }
         }
     }
 
@@ -123,14 +135,16 @@ public class ObjectisCollection<T> {
      * @param items The list of items to delete.
      */
     public final void deleteAll(List<T> items) {
-        try {
-            Reflector.checkClass(aClass);
-            for (T item : items) {
-                final String id = Reflector.getIDField(item);
-                Objectis.getJedis().srem(getReference(), Serializer.serializeKey(id));
+        synchronized (lock) {
+            try {
+                Reflector.checkClass(aClass);
+                for (T item : items) {
+                    final String id = Reflector.getIDField(item);
+                    Objectis.getJedis().srem(getReference(), Serializer.serializeKey(id));
+                }
+            } catch (ClassRegistrationException | NoSuchFieldException | IllegalAccessException e) {
+                throw new OperationFailedException(e);
             }
-        } catch (ClassRegistrationException | NoSuchFieldException | IllegalAccessException e) {
-            throw new OperationFailedException(e);
         }
     }
 
@@ -139,13 +153,15 @@ public class ObjectisCollection<T> {
      * @param ids The IDs of the items to delete.
      */
     public final void deleteAll(String... ids) {
-        try {
-            Reflector.checkClass(aClass);
-            for (String id : ids) {
-                Objectis.getJedis().srem(getReference(), Serializer.serializeKey(id));
+        synchronized (lock) {
+            try {
+                Reflector.checkClass(aClass);
+                for (String id : ids) {
+                    Objectis.getJedis().srem(getReference(), Serializer.serializeKey(id));
+                }
+            } catch (ClassRegistrationException e) {
+                throw new OperationFailedException(e);
             }
-        } catch (ClassRegistrationException e) {
-            throw new OperationFailedException(e);
         }
     }
 
@@ -155,12 +171,14 @@ public class ObjectisCollection<T> {
      * @return Returns true if the item is in the collection, false otherwise.
      */
     public final boolean contains(T item) {
-        try {
-            Reflector.checkClass(aClass);
-            final String id = Reflector.getIDField(item);
-            return Objectis.getJedis().sismember(getReference(), Serializer.serializeKey(id));
-        } catch (ClassRegistrationException | NoSuchFieldException | IllegalAccessException e) {
-            throw new OperationFailedException(e);
+        synchronized (lock) {
+            try {
+                Reflector.checkClass(aClass);
+                final String id = Reflector.getIDField(item);
+                return Objectis.getJedis().sismember(getReference(), Serializer.serializeKey(id));
+            } catch (ClassRegistrationException | NoSuchFieldException | IllegalAccessException e) {
+                throw new OperationFailedException(e);
+            }
         }
     }
 
@@ -170,11 +188,13 @@ public class ObjectisCollection<T> {
      * @return Returns true if the item is in the collection, false otherwise.
      */
     public final boolean contains(String itemID) {
-        try {
-            Reflector.checkClass(aClass);
-            return Objectis.getJedis().sismember(getReference(), Serializer.serializeKey(itemID));
-        } catch (ClassRegistrationException e) {
-            throw new OperationFailedException(e);
+        synchronized (lock) {
+            try {
+                Reflector.checkClass(aClass);
+                return Objectis.getJedis().sismember(getReference(), Serializer.serializeKey(itemID));
+            } catch (ClassRegistrationException e) {
+                throw new OperationFailedException(e);
+            }
         }
     }
 
@@ -183,7 +203,9 @@ public class ObjectisCollection<T> {
      * @return Returns an ObjectisFilterable.
      */
     public final ObjectisFilterable<T> filter() {
-        return new ObjectisFilterable<>(aClass, new Vector<>(list()));
+        synchronized (lock) {
+            return new ObjectisFilterable<>(aClass, new Vector<>(list()));
+        }
     }
 
 }

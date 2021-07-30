@@ -13,18 +13,25 @@ public class SimpleTest {
         Objectis.flush();
 
         ArrayList<Thread> threads = new ArrayList<>();
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < 10; i++) {
             final int name = i;
             threads.add(new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    for (int i = 0; i < 100; i++) {
+                    for (int i = 0; i < 10; i++) {
                         Person p = new Person(UUID.randomUUID().toString(), 10 + i, UUID.randomUUID().toString().substring(3), UUID.randomUUID().toString().substring(3));
+                        Objectis.collection(Person.class, "myCollection").add(p);
                         Objectis.create(p);
-//                        System.out.println("Thread " + name + " created person " + i);
+//                        Objectis.get(Person.class, "X");
+                        System.out.println("Thread " + name + " created person " + i);
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                     }
-                    final List<Person> list = Objectis.list(Person.class);
-                    System.out.println(list);
+//                    final List<Person> list = Objectis.list(Person.class);
+//                    System.out.println(list.size());
                 }
             }));
         }

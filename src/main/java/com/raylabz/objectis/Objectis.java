@@ -510,19 +510,19 @@ public final class Objectis {
      * @throws OperationFailedException when the operation fails.
      */
     public static synchronized <T> void deleteAll(List<T> objects) throws OperationFailedException {
-        if (objects.size() > 0) {
-            try {
-                checkRegistration(objects.get(0).getClass());
-                for (T object : objects) {
-                    final String id = Reflector.getIDField(object);
-                    final byte[] objectPathBytes = PathMaker.getObjectPath(object.getClass(), id);
-                    jedis.del(objectPathBytes);
-                    jedis.srem(PathMaker.getClassListPath(object.getClass()), Serializer.serializeKey(id));
+            if (objects.size() > 0) {
+                try {
+                    checkRegistration(objects.get(0).getClass());
+                    for (T object : objects) {
+                        final String id = Reflector.getIDField(object);
+                        final byte[] objectPathBytes = PathMaker.getObjectPath(object.getClass(), id);
+                        jedis.del(objectPathBytes);
+                        jedis.srem(PathMaker.getClassListPath(object.getClass()), Serializer.serializeKey(id));
+                    }
+                } catch (Exception e) {
+                    throw new OperationFailedException(e);
                 }
-            } catch (Exception e) {
-                throw new OperationFailedException(e);
             }
-        }
     }
 
     /**
