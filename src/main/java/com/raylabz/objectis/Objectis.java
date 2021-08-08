@@ -7,6 +7,7 @@ import com.raylabz.objectis.exception.OperationFailedException;
 import com.raylabz.objectis.query.ObjectisCollection;
 import com.raylabz.objectis.query.ObjectisFilterable;
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -14,7 +15,8 @@ import java.util.concurrent.*;
 
 public final class Objectis {
 
-    private static Jedis jedis;
+//    private static Jedis jedis;
+    private static JedisPool pool;
     private static int NUM_OF_PROCESSORS;
     private static boolean useMultipleThreads = true;
     public static final Object lock = new Object();
@@ -26,54 +28,9 @@ public final class Objectis {
     private Objectis() {
     }
 
-    /**
-     * Initializes Objectis.
-     *
-     * @param host    The host name (typically an IP address)
-     * @param port    The port
-     * @param timeout The timeout in ms.
-     * @param ssl     Use SSL
-     */
-    public static void init(String host, int port, int timeout, boolean ssl) {
-        jedis = new Jedis(host, port, timeout, ssl);
+    public static void init(JedisPool pool) {
+        Objectis.pool = pool;
         NUM_OF_PROCESSORS = Runtime.getRuntime().availableProcessors();
-//        publisher = new Publisher(jedis);
-//        publisher.start();
-    }
-
-    /**
-     * Initializes Objectis.
-     *
-     * @param host The host name (typically an IP address)
-     * @param port The port
-     */
-    public static void init(String host, int port) {
-        jedis = new Jedis(host, port, 30000, false);
-        NUM_OF_PROCESSORS = Runtime.getRuntime().availableProcessors();
-//        publisher = new Publisher(jedis);
-//        publisher.start();
-    }
-
-    /**
-     * Initializes Objectis.
-     */
-    public static void init() {
-        jedis = new Jedis("localhost", 6379, 30000, false);
-        NUM_OF_PROCESSORS = Runtime.getRuntime().availableProcessors();
-//        publisher = new Publisher(jedis);
-//        publisher.start();
-    }
-
-    /**
-     * Initializes Objectis.
-     *
-     * @param jedis A Jedis object.
-     */
-    public static void init(Jedis jedis) {
-        Objectis.jedis = jedis;
-        NUM_OF_PROCESSORS = Runtime.getRuntime().availableProcessors();
-//        publisher = new Publisher(jedis);
-//        publisher.start();
     }
 
     /**
@@ -81,7 +38,7 @@ public final class Objectis {
      *
      * @param useMultipleThreads Set to true to enable use of multithreading, false to use a single thread.
      */
-    public static void useMutithreading(boolean useMultipleThreads) {
+    public static void useMultithreading(boolean useMultipleThreads) {
         Objectis.useMultipleThreads = useMultipleThreads;
     }
 
@@ -119,11 +76,23 @@ public final class Objectis {
         ObjectisRegistry.register(aClass);
     }
 
+    public static Jedis getJedis() {
+        return pool.getResource();
+    }
+
+    public static void releaseJedis(Jedis jedis) {
+        if (jedis != null) {
+            pool.returnResource(jedis);
+        }
+    }
+
     /**
      * Flushes the cache.
      */
-    public static synchronized void flush() {
+    public static void flush() {
+        final Jedis jedis = getJedis();
         jedis.flushDB();
+        releaseJedis(jedis);
     }
 
     /**
@@ -136,11 +105,12 @@ public final class Objectis {
     public static <T> void create(final T object) throws OperationFailedException {
         try {
             checkRegistration(object);
-            synchronized (lock) {
-                jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
-                final String idField = Reflector.getIDField(object);
-                jedis.sadd(PathMaker.getClassListPath(object.getClass()), idField.getBytes(StandardCharsets.UTF_8));
-            }
+            final Jedis jedis = getJedis();
+            jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
+            final String idField = Reflector.getIDField(object);
+            //TODO - Handle empty or null IDs!
+            jedis.sadd(PathMaker.getClassListPath(object.getClass()), idField.getBytes(StandardCharsets.UTF_8));
+            releaseJedis(jedis);
 //            publisher.publish(object.getClass(), idField, OperationType.CREATE, object);
         } catch (Exception e) {
             throw new OperationFailedException(e);
@@ -159,13 +129,13 @@ public final class Objectis {
         if (objects.size() > 0) {
             try {
                 checkRegistration(objects.get(0).getClass());
+                final Jedis jedis = getJedis();
                 for (T object : objects) {
-                    synchronized (lock) {
-                        jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
-                        final String idField = Reflector.getIDField(object);
-                        jedis.sadd(PathMaker.getClassListPath(object.getClass()), idField.getBytes(StandardCharsets.UTF_8));
-                    }
+                    jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
+                    final String idField = Reflector.getIDField(object);
+                    jedis.sadd(PathMaker.getClassListPath(object.getClass()), idField.getBytes(StandardCharsets.UTF_8));
                 }
+                releaseJedis(jedis);
             } catch (Exception e) {
                 throw new OperationFailedException(e);
             }
@@ -183,10 +153,10 @@ public final class Objectis {
     public static <T> void create(final T object, String id) throws OperationFailedException {
         try {
             checkRegistration(object);
-            synchronized (lock) {
-                jedis.set(PathMaker.getObjectPath(object.getClass(), id), Serializer.serializeObject(object));
-                jedis.sadd(PathMaker.getClassListPath(object.getClass()), id.getBytes(StandardCharsets.UTF_8));
-            }
+            final Jedis jedis = getJedis();
+            jedis.set(PathMaker.getObjectPath(object.getClass(), id), Serializer.serializeObject(object));
+            jedis.sadd(PathMaker.getClassListPath(object.getClass()), id.getBytes(StandardCharsets.UTF_8));
+            releaseJedis(jedis);
 //            publisher.publish(object.getClass(), idField, OperationType.CREATE, object);
         } catch (Exception e) {
             throw new OperationFailedException(e);
@@ -203,11 +173,11 @@ public final class Objectis {
     public static <T> void update(final T object) throws OperationFailedException {
         try {
             checkRegistration(object);
-            synchronized (lock) {
-                jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
-                final String idField = Reflector.getIDField(object);
-                jedis.sadd(PathMaker.getClassListPath(object.getClass()), idField.getBytes(StandardCharsets.UTF_8));
-            }
+            final Jedis jedis = getJedis();
+            jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
+            final String idField = Reflector.getIDField(object);
+            jedis.sadd(PathMaker.getClassListPath(object.getClass()), idField.getBytes(StandardCharsets.UTF_8));
+            releaseJedis(jedis);
 //            publisher.publish(object.getClass(), idField, OperationType.UPDATE, object);
         } catch (Exception e) {
             throw new OperationFailedException(e);
@@ -227,9 +197,9 @@ public final class Objectis {
         try {
             checkRegistration(aClass);
             final byte[] bytes;
-            synchronized (lock) {
-                bytes = jedis.get(PathMaker.getObjectPath(aClass, id));
-            }
+            final Jedis jedis = getJedis();
+            bytes = jedis.get(PathMaker.getObjectPath(aClass, id));
+            releaseJedis(jedis);
             if (bytes == null) {
                 return null;
             }
@@ -263,9 +233,11 @@ public final class Objectis {
             }
 
             final List<byte[]> itemsBytes;
-            synchronized (lock) {
-                itemsBytes = jedis.mget(arrayOfIDs);
-            }
+
+            final Jedis jedis = getJedis();
+            itemsBytes = jedis.mget(arrayOfIDs);
+            releaseJedis(jedis);
+
             ArrayList<T> items = new ArrayList<>();
             for (byte[] itemByte : itemsBytes) {
                 final T item = Serializer.deserializeObject(itemByte, aClass);
@@ -293,9 +265,11 @@ public final class Objectis {
             }
 
             final List<byte[]> itemsBytes;
-            synchronized (lock) {
-                itemsBytes = jedis.mget(arrayOfIDs);
-            }
+
+            final Jedis jedis = getJedis();
+            itemsBytes = jedis.mget(arrayOfIDs);
+            releaseJedis(jedis);
+
             ArrayList<T> items = new ArrayList<>();
             for (byte[] itemByte : itemsBytes) {
                 final T item = Serializer.deserializeObject(itemByte, aClass);
@@ -316,9 +290,10 @@ public final class Objectis {
             }
 
             final List<byte[]> itemsBytes;
-            synchronized (lock) {
-                itemsBytes = jedis.mget(arrayOfIDs);
-            }
+
+            final Jedis jedis = getJedis();
+            itemsBytes = jedis.mget(arrayOfIDs);
+            releaseJedis(jedis);
 
             final int numOfProcessors = Objectis.NUM_OF_PROCESSORS;
 
@@ -373,9 +348,10 @@ public final class Objectis {
             }
 
             final List<byte[]> itemsBytes;
-            synchronized (lock) {
-                itemsBytes = jedis.mget(arrayOfIDs);
-            }
+
+            final Jedis jedis = getJedis();
+            itemsBytes = jedis.mget(arrayOfIDs);
+            releaseJedis(jedis);
 
             final int numOfProcessors = Objectis.NUM_OF_PROCESSORS;
 
@@ -446,9 +422,10 @@ public final class Objectis {
         try {
             checkRegistration(aClass);
             final Set<byte[]> classObjectBytes;
-            synchronized (lock) {
-                classObjectBytes = jedis.smembers(PathMaker.getClassListPath(aClass));
-            }
+
+            final Jedis jedis = getJedis();
+            classObjectBytes = jedis.smembers(PathMaker.getClassListPath(aClass));
+            releaseJedis(jedis);
 
             ArrayList<String> ids = new ArrayList<>();
             for (byte[] idBytes : classObjectBytes) {
@@ -475,9 +452,11 @@ public final class Objectis {
             checkRegistration(aClass);
             final byte[] objectPathBytes = PathMaker.getObjectPath(aClass, id);
             final boolean result;
-            synchronized (lock) {
-                result = jedis.get(objectPathBytes) != null;
-            }
+
+            final Jedis jedis = getJedis();
+            result = jedis.get(objectPathBytes) != null;
+            releaseJedis(jedis);
+
             return result;
         } catch (Exception e) {
             throw new OperationFailedException(e);
@@ -496,10 +475,12 @@ public final class Objectis {
         try {
             checkRegistration(aClass);
             final byte[] objectPathBytes = PathMaker.getObjectPath(aClass, id);
-            synchronized (lock) {
-                jedis.del(objectPathBytes);
-                jedis.srem(PathMaker.getClassListPath(aClass), Serializer.serializeKey(id));
-            }
+
+            final Jedis jedis = getJedis();
+            jedis.del(objectPathBytes);
+            jedis.srem(PathMaker.getClassListPath(aClass), Serializer.serializeKey(id));
+            releaseJedis(jedis);
+
 //            publisher.publish(aClass, id, OperationType.DELETE, null);
         } catch (Exception e) {
             throw new OperationFailedException(e);
@@ -518,10 +499,12 @@ public final class Objectis {
             checkRegistration(object);
             final String id = Reflector.getIDField(object);
             final byte[] objectPathBytes = PathMaker.getObjectPath(object.getClass(), id);
-            synchronized (lock) {
-                jedis.del(objectPathBytes);
-                jedis.srem(PathMaker.getClassListPath(object.getClass()), Serializer.serializeKey(id));
-            }
+
+            final Jedis jedis = getJedis();
+            jedis.del(objectPathBytes);
+            jedis.srem(PathMaker.getClassListPath(object.getClass()), Serializer.serializeKey(id));
+            releaseJedis(jedis);
+
         } catch (Exception e) {
             throw new OperationFailedException(e);
         }
@@ -540,10 +523,12 @@ public final class Objectis {
             checkRegistration(aClass);
             for (String id : ids) {
                 final byte[] objectPathBytes = PathMaker.getObjectPath(aClass, id);
-                synchronized (lock) {
-                    jedis.del(objectPathBytes);
-                    jedis.srem(PathMaker.getClassListPath(aClass), Serializer.serializeKey(id));
-                }
+
+                final Jedis jedis = getJedis();
+                jedis.del(objectPathBytes);
+                jedis.srem(PathMaker.getClassListPath(aClass), Serializer.serializeKey(id));
+                releaseJedis(jedis);
+
 //            publisher.publish(aClass, id, OperationType.DELETE, null);
             }
         } catch (Exception e) {
@@ -577,10 +562,12 @@ public final class Objectis {
                 for (T object : objects) {
                     final String id = Reflector.getIDField(object);
                     final byte[] objectPathBytes = PathMaker.getObjectPath(object.getClass(), id);
-                    synchronized (lock) {
-                        jedis.del(objectPathBytes);
-                        jedis.srem(PathMaker.getClassListPath(object.getClass()), Serializer.serializeKey(id));
-                    }
+
+                    final Jedis jedis = getJedis();
+                    jedis.del(objectPathBytes);
+                    jedis.srem(PathMaker.getClassListPath(object.getClass()), Serializer.serializeKey(id));
+                    releaseJedis(jedis);
+
                 }
             } catch (Exception e) {
                 throw new OperationFailedException(e);
@@ -621,15 +608,6 @@ public final class Objectis {
      */
     public static synchronized <T> ObjectisCollection<T> collection(Class<T> aClass, String collectionName) {
         return new ObjectisCollection<>(aClass, collectionName);
-    }
-
-    /**
-     * Retrieve the Jedis object.
-     *
-     * @return Returns a Jedis object.
-     */
-    public static synchronized Jedis getJedis() {
-        return jedis;
     }
 
 //    public static <T> void addListener(Class<T> aClass, String id) {

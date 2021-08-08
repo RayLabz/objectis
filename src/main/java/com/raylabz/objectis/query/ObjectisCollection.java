@@ -8,6 +8,7 @@ import com.raylabz.objectis.concurrency.ArrayRange;
 import com.raylabz.objectis.concurrency.GetManyCallable;
 import com.raylabz.objectis.exception.ClassRegistrationException;
 import com.raylabz.objectis.exception.OperationFailedException;
+import redis.clients.jedis.Jedis;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -58,9 +59,9 @@ public class ObjectisCollection<T> {
     public final void add(T item) throws OperationFailedException {
         try {
             Reflector.checkClass(item.getClass());
-            synchronized (Objectis.lock) {
-                Objectis.getJedis().sadd(getReference(), Serializer.serializeKey(Reflector.getIDField(item)));
-            }
+            final Jedis jedis = Objectis.getJedis();
+            jedis.sadd(getReference(), Serializer.serializeKey(Reflector.getIDField(item)));
+            Objectis.releaseJedis(jedis);
         } catch (NoSuchFieldException | IllegalAccessException | ClassRegistrationException e) {
             throw new OperationFailedException(e);
         }
@@ -74,11 +75,11 @@ public class ObjectisCollection<T> {
     public final void addAll(List<T> items) {
         try {
             Reflector.checkClass(aClass);
+            final Jedis jedis = Objectis.getJedis();
             for (T item : items) {
-                synchronized (Objectis.lock) {
-                    Objectis.getJedis().sadd(getReference(), Serializer.serializeKey(Reflector.getIDField(item)));
-                }
+                jedis.sadd(getReference(), Serializer.serializeKey(Reflector.getIDField(item)));
             }
+            Objectis.releaseJedis(jedis);
         } catch (NoSuchFieldException | IllegalAccessException | ClassRegistrationException e) {
             throw new OperationFailedException(e);
         }
@@ -94,14 +95,12 @@ public class ObjectisCollection<T> {
         try {
             Reflector.checkClass(aClass);
             final Set<byte[]> itemIDsAsBytesSet;
-            synchronized (Objectis.lock) {
-                itemIDsAsBytesSet = Objectis.getJedis().smembers(getReference());
-            }
+            final Jedis jedis = Objectis.getJedis();
+            itemIDsAsBytesSet = jedis.smembers(getReference());
             final List<byte[]> itemIDsAsBytes = new ArrayList<>(itemIDsAsBytesSet);
             final List<T> result;
-            synchronized (Objectis.lock) {
-                result = Objectis.getManyWithBytes(aClass, itemIDsAsBytes);
-            }
+            result = Objectis.getManyWithBytes(aClass, itemIDsAsBytes);
+            Objectis.releaseJedis(jedis);
             return result;
         } catch (ClassRegistrationException e) {
             throw new OperationFailedException(e);
@@ -117,9 +116,9 @@ public class ObjectisCollection<T> {
         try {
             Reflector.checkClass(aClass);
             final String id = Reflector.getIDField(item);
-            synchronized (Objectis.lock) {
-                Objectis.getJedis().srem(getReference(), Serializer.serializeKey(id));
-            }
+            final Jedis jedis = Objectis.getJedis();
+            jedis.srem(getReference(), Serializer.serializeKey(id));
+            Objectis.releaseJedis(jedis);
         } catch (ClassRegistrationException | NoSuchFieldException | IllegalAccessException e) {
             throw new OperationFailedException(e);
         }
@@ -133,9 +132,9 @@ public class ObjectisCollection<T> {
     public final void delete(String itemID) {
         try {
             Reflector.checkClass(aClass);
-            synchronized (Objectis.lock) {
-                Objectis.getJedis().srem(getReference(), Serializer.serializeKey(itemID));
-            }
+            final Jedis jedis = Objectis.getJedis();
+            jedis.srem(getReference(), Serializer.serializeKey(itemID));
+            Objectis.releaseJedis(jedis);
         } catch (ClassRegistrationException e) {
             throw new OperationFailedException(e);
         }
@@ -149,12 +148,12 @@ public class ObjectisCollection<T> {
     public final void deleteAll(List<T> items) {
         try {
             Reflector.checkClass(aClass);
+            final Jedis jedis = Objectis.getJedis();
             for (T item : items) {
                 final String id = Reflector.getIDField(item);
-                synchronized (Objectis.lock) {
-                    Objectis.getJedis().srem(getReference(), Serializer.serializeKey(id));
-                }
+                jedis.srem(getReference(), Serializer.serializeKey(id));
             }
+            Objectis.releaseJedis(jedis);
         } catch (ClassRegistrationException | NoSuchFieldException | IllegalAccessException e) {
             throw new OperationFailedException(e);
         }
@@ -168,11 +167,11 @@ public class ObjectisCollection<T> {
     public final void deleteAll(String... ids) {
         try {
             Reflector.checkClass(aClass);
+            final Jedis jedis = Objectis.getJedis();
             for (String id : ids) {
-                synchronized (Objectis.lock) {
-                    Objectis.getJedis().srem(getReference(), Serializer.serializeKey(id));
-                }
+                jedis.srem(getReference(), Serializer.serializeKey(id));
             }
+            Objectis.releaseJedis(jedis);
         } catch (ClassRegistrationException e) {
             throw new OperationFailedException(e);
         }
@@ -189,9 +188,9 @@ public class ObjectisCollection<T> {
             Reflector.checkClass(aClass);
             final String id = Reflector.getIDField(item);
             final Boolean result;
-            synchronized (Objectis.lock) {
-                result = Objectis.getJedis().sismember(getReference(), Serializer.serializeKey(id));
-            }
+            final Jedis jedis = Objectis.getJedis();
+            result = jedis.sismember(getReference(), Serializer.serializeKey(id));
+            Objectis.releaseJedis(jedis);
             return result;
         } catch (ClassRegistrationException | NoSuchFieldException | IllegalAccessException e) {
             throw new OperationFailedException(e);
@@ -209,9 +208,9 @@ public class ObjectisCollection<T> {
             Reflector.checkClass(aClass);
 
             final Boolean result;
-            synchronized (Objectis.lock) {
-                result = Objectis.getJedis().sismember(getReference(), Serializer.serializeKey(itemID));
-            }
+            final Jedis jedis = Objectis.getJedis();
+            result = jedis.sismember(getReference(), Serializer.serializeKey(itemID));
+            Objectis.releaseJedis(jedis);
             return result;
         } catch (ClassRegistrationException e) {
             throw new OperationFailedException(e);
@@ -224,9 +223,7 @@ public class ObjectisCollection<T> {
      * @return Returns an ObjectisFilterable.
      */
     public final ObjectisFilterable<T> filter() {
-        synchronized (Objectis.lock) {
-            return new ObjectisFilterable<>(aClass, new Vector<>(list()));
-        }
+        return new ObjectisFilterable<>(aClass, new Vector<>(list()));
     }
 
 }

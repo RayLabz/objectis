@@ -49,6 +49,8 @@ public class ObjectisFilterable<T> {
         classFields = aClass.getDeclaredFields();
     }
 
+    //TODO - Multithreaded filtering?
+
     /**
      * Filters by a field's value being equal to the one provided.
      * @param fieldName The field name.
