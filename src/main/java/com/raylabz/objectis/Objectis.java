@@ -106,11 +106,9 @@ public final class Objectis {
         try {
             checkRegistration(object);
             final Jedis jedis = getJedis();
-            String idField = Reflector.getIDField(object);
-            if (idField == null || idField.isEmpty()) {
-                idField = UUID.randomUUID().toString();
-            }
-            jedis.set(idField.getBytes(StandardCharsets.UTF_8), Serializer.serializeObject(object));
+            jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
+            final String idField = Reflector.getIDField(object);
+            //TODO - Handle empty or null IDs!
             jedis.sadd(PathMaker.getClassListPath(object.getClass()), idField.getBytes(StandardCharsets.UTF_8));
             releaseJedis(jedis);
 //            publisher.publish(object.getClass(), idField, OperationType.CREATE, object);
@@ -133,11 +131,8 @@ public final class Objectis {
                 checkRegistration(objects.get(0).getClass());
                 final Jedis jedis = getJedis();
                 for (T object : objects) {
-                    String idField = Reflector.getIDField(object);
-                    if (idField == null || idField.isEmpty()) {
-                        idField = UUID.randomUUID().toString();
-                    }
-                    jedis.set(idField.getBytes(StandardCharsets.UTF_8), Serializer.serializeObject(object));
+                    jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
+                    final String idField = Reflector.getIDField(object);
                     jedis.sadd(PathMaker.getClassListPath(object.getClass()), idField.getBytes(StandardCharsets.UTF_8));
                 }
                 releaseJedis(jedis);
