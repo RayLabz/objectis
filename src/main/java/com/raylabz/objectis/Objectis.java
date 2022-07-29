@@ -1,6 +1,7 @@
 package com.raylabz.objectis;
 
 import com.raylabz.objectis.concurrency.ArrayRange;
+import com.raylabz.objectis.concurrency.CreateManyCallable;
 import com.raylabz.objectis.concurrency.GetManyCallable;
 import com.raylabz.objectis.exception.ClassRegistrationException;
 import com.raylabz.objectis.exception.OperationFailedException;
@@ -15,7 +16,6 @@ import java.util.concurrent.*;
 
 public final class Objectis {
 
-//    private static Jedis jedis;
     private static JedisPool pool;
     private static int NUM_OF_PROCESSORS;
     private static boolean useMultipleThreads = true;
@@ -106,6 +106,7 @@ public final class Objectis {
         try {
             checkRegistration(object);
             final Jedis jedis = getJedis();
+
             jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
             final String idField = Reflector.getIDField(object);
             //TODO - Handle empty or null IDs!
@@ -125,20 +126,67 @@ public final class Objectis {
      * @throws OperationFailedException when the operation fails.
      */
     public static <T> void createAll(List<T> objects) throws OperationFailedException {
-
-        if (objects.size() > 0) {
-            try {
-                checkRegistration(objects.get(0).getClass());
-                final Jedis jedis = getJedis();
-                for (T object : objects) {
-                    jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
-                    final String idField = Reflector.getIDField(object);
-                    jedis.sadd(PathMaker.getClassListPath(object.getClass()), idField.getBytes(StandardCharsets.UTF_8));
+        if (objects.size() >= 50 && useMultipleThreads) {
+            createAll_MT(objects);
+        }
+        else {
+            if (objects.size() > 0) {
+                try {
+                    checkRegistration(objects.get(0).getClass());
+                    final Jedis jedis = getJedis();
+                    for (T object : objects) {
+                        jedis.set(PathMaker.getObjectPath(object), Serializer.serializeObject(object));
+                        final String idField = Reflector.getIDField(object);
+                        jedis.sadd(PathMaker.getClassListPath(object.getClass()), idField.getBytes(StandardCharsets.UTF_8));
+                    }
+                    releaseJedis(jedis);
+                } catch (Exception e) {
+                    throw new OperationFailedException(e);
                 }
-                releaseJedis(jedis);
-            } catch (Exception e) {
-                throw new OperationFailedException(e);
             }
+        }
+    }
+
+    private static <T> void createAll_MT(List<T> objects) throws OperationFailedException {
+        try {
+            checkRegistration(objects.get(0));
+
+            final int itemsPerRange = objects.size() / NUM_OF_PROCESSORS;
+            final int remainder = objects.size() % NUM_OF_PROCESSORS;
+            int[] itemsInThreads = new int[NUM_OF_PROCESSORS];
+            for (int i = 0; i < itemsInThreads.length; i++) {
+                itemsInThreads[i] = itemsPerRange;
+                if (i < remainder) {
+                    itemsInThreads[i]++;
+                }
+            }
+
+            ArrayList<ArrayRange> arrayRanges = new ArrayList<>();
+
+            int itemStart = 0;
+            for (int i = 0; i < NUM_OF_PROCESSORS; i++) {
+                int itemEnd = itemStart + itemsInThreads[i];
+                arrayRanges.add(new ArrayRange(itemStart, itemEnd));
+                itemStart = itemEnd;
+            }
+
+            ExecutorService service = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+            List<CreateManyCallable<T>> futureList = new ArrayList<>();
+
+            for (int i = 0; i < NUM_OF_PROCESSORS; i++) {
+                CreateManyCallable<T> callable = new CreateManyCallable<>(objects, arrayRanges.get(i));
+                futureList.add(callable);
+            }
+
+            final List<Future<Void>> futures = service.invokeAll(futureList);
+            service.shutdown();
+
+            for (Future<Void> future : futures) {
+                future.get();
+            }
+
+        } catch (ClassRegistrationException | InterruptedException | ExecutionException e) {
+            throw new OperationFailedException(e);
         }
     }
 
